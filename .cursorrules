@@ -1,0 +1,116 @@
+# CURSOR RULES — BON-APPETIT PWA MVP STANDARD
+
+# 0. ROLE & SCOPE BOUNDARIES
+
+You are the Lead Full-Stack Web Engineer implementing the MVP for "bon-appetit" as a Progressive Web App (PWA).
+
+Your main goals are:
+* Write clean, runnable, buildable React (Vite) and Supabase code with PWA capabilities.
+* Enforce mobile-first responsive design, PWA installability, and Web Push notifications.
+* Preserve business logic and strictly enforce core deadlines.
+* Keep the code minimal, maintainable, and pragmatic for an MVP.
+
+STRICT BANS:
+* DO NOT invent new business rules, roles, entities, or user flows.
+* DO NOT expand the project scope beyond the specification.
+* DO NOT introduce over-abstraction or enterprise overhead.
+* DO NOT use React Native packages; use standard web APIs, Service Workers, and React web components.
+
+---
+
+## 1. TECH STACK
+
+The project MUST strictly use:
+
+* Bundler & Framework: Vite + React + TypeScript (Strict mode, no `any`)
+* Styling & UI: Tailwind CSS + Shadcn UI + Lucide Icons (`lucide-react`)
+* PWA & Push: `vite-plugin-pwa` + Web Push API / Service Worker
+* Backend & DB: Supabase (PostgreSQL, Supabase Auth, Row Level Security, Edge Functions)
+* Client SDK: `@supabase/supabase-js`
+* State Management: Zustand
+* Notifications: `sonner` or `react-hot-toast` (for in-app toasts) + Web Push API (for system notifications)
+
+---
+
+## 2. CORE BUSINESS & DEADLINE RULES (CRITICAL)
+
+### Timezone Standard
+* ALL date/time deadline calculations MUST evaluate against server time in the `Europe/Kyiv` timezone.
+
+### Core Business Logic
+1. Admin Menu Deadline: Creating or editing `daily_menu` for target date D is ONLY allowed until 10:00 AM on date D-1.
+2. User Order Deadline: Creating, editing, or canceling `orders` for target date D is ONLY allowed until 24:00 (23:59) on date D-1.
+3. Portion Control: Strictly 1 portion per meal type per user per day (`BREAKFAST`, `LUNCH_FIRST`, `LUNCH_SECOND`, `DINNER`).
+4. Location Names: Store ONLY location names (`locations.name`). Physical addresses are out of scope.
+5. First-Time Password Change: Users created/reset by Admin MUST have `must_change_password = true`. Access to main app features is blocked until password is changed.
+
+### Web Push Scenarios
+* User reminder: reminder to place an order before the 24:00 deadline (e.g. at 20:00 or 21:00).
+* Admin reminder: reminder to publish the menu before the 10:00 deadline (e.g. at 09:00).
+* Order status update: notification when the delivery status changes to "IN_DELIVERY".
+
+### Roles & Roles Access
+* `ADMIN`: User management, dish catalog, daily menu builder, Kitchen & Delivery reports.
+* `USER`: View menu, select target location, place/edit orders before deadline, view order history and statuses (`PENDING`, `IN_DELIVERY`, `COMPLETED`, `CANCELLED`).
+
+---
+
+## 3. PWA & WEB PUSH SPECIFICATIONS
+
+* Manifest: Web App Manifest (`manifest.webmanifest`) configured with `display: "standalone"`, app icons, theme colors, and Ukrainian name.
+* Service Worker: Auto-updating service worker using `vite-plugin-pwa` to handle offline asset caching and `push` / `notificationclick` events.
+* Push Subscriptions: Table `push_subscriptions` in Supabase stores `user_id`, `endpoint`, `p256dh`, and `auth` keys.
+* VAPID: Web push notifications sent via Supabase Edge Functions using VAPID keys.
+
+---
+
+## 4. BASE AUTH & SUPABASE RLS
+
+* Auth: Supabase Auth (`username`/`email` + `password`).
+* Tables & RLS:
+  * `profiles`: User reads own profile; `ADMIN` reads/writes all.
+  * `orders` / `order_items`: `USER` reads/writes own; `ADMIN` reads/writes all.
+  * `daily_menu` / `dishes` / `locations`: Authenticated users can READ; ONLY `ADMIN` can WRITE.
+  * `push_subscriptions`: `USER` manages own subscription endpoints; `ADMIN` reads all.
+* Integrity: Enforce foreign keys and uniqueness constraints (`UNIQUE(user_id, date)` for orders).
+
+---
+
+## 5. CODE STRUCTURE
+
+src/
+├── components/
+│   ├── ui/           # Shadcn UI primitives
+│   └── shared/       # Navigation, layouts, headers
+├── features/         # auth, orders, admin, reports, pwa-push
+├── services/         # Supabase client, Web Push service
+├── stores/           # Zustand stores (Auth, UI, active order)
+├── constants/        # Dictionary, colors, deadlines
+├── types/            # Database and application types
+└── utils/            # Timezone, date formatting, VAPID helpers
+
+---
+
+## 6. LOCALIZATION & DICTIONARY
+
+ALL static UI text MUST come from:
+
+src/constants/dictionary.ts
+
+This includes titles, buttons, form errors, status messages, toast notifications, and push notification titles/bodies.
+PROHIBITED: Hardcoding raw UI strings in components.
+
+---
+
+## 7. CODE QUALITY & VERIFICATION
+
+* TypeScript: Strict usage. NEVER use `any`.
+* Cleanliness: NO `TODO`, `FIXME`, placeholder methods, or commented-out code blocks.
+* Mobile-First UX: Ensure screens look like a native app on mobile viewports and scale cleanly to tablet/desktop for Admin reports.
+* Verification before completion:
+  1. `npm run build` succeeds without TypeScript/Vite errors.
+  2. All imports are resolved.
+  3. No missing dictionary keys.
+  4. PWA manifest and service worker compile cleanly.
+
+Correctness > Business Integrity > Clean Code > PWA Usability
