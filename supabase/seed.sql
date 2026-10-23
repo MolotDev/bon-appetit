@@ -196,26 +196,18 @@ DO $$
 DECLARE
   v_tomorrow date := ((now() AT TIME ZONE 'Europe/Kyiv')::date + 1);
   v_menu_oats uuid := 'e0000000-0000-4000-8000-000000000001';
-  v_menu_omelet uuid := 'e0000000-0000-4000-8000-000000000002';
   v_menu_borsch uuid := 'e0000000-0000-4000-8000-000000000003';
-  v_menu_broth uuid := 'e0000000-0000-4000-8000-000000000004';
   v_menu_buckwheat uuid := 'e0000000-0000-4000-8000-000000000005';
-  v_menu_plov uuid := 'e0000000-0000-4000-8000-000000000006';
   v_menu_bake uuid := 'e0000000-0000-4000-8000-000000000007';
-  v_menu_salad uuid := 'e0000000-0000-4000-8000-000000000008';
   v_order_ivan uuid := 'f0000000-0000-4000-8000-000000000001';
   v_order_oksana uuid := 'f0000000-0000-4000-8000-000000000002';
   v_order_petro uuid := 'f0000000-0000-4000-8000-000000000003';
 BEGIN
   INSERT INTO public.daily_menu (id, date, dish_id, meal_type) VALUES
     (v_menu_oats, v_tomorrow, 'd0000000-0000-4000-8000-000000000001', 'BREAKFAST'),
-    (v_menu_omelet, v_tomorrow, 'd0000000-0000-4000-8000-000000000002', 'BREAKFAST'),
     (v_menu_borsch, v_tomorrow, 'd0000000-0000-4000-8000-000000000004', 'LUNCH_FIRST'),
-    (v_menu_broth, v_tomorrow, 'd0000000-0000-4000-8000-000000000005', 'LUNCH_FIRST'),
     (v_menu_buckwheat, v_tomorrow, 'd0000000-0000-4000-8000-000000000006', 'LUNCH_SECOND'),
-    (v_menu_plov, v_tomorrow, 'd0000000-0000-4000-8000-000000000007', 'LUNCH_SECOND'),
-    (v_menu_bake, v_tomorrow, 'd0000000-0000-4000-8000-000000000009', 'DINNER'),
-    (v_menu_salad, v_tomorrow, 'd0000000-0000-4000-8000-000000000010', 'DINNER');
+    (v_menu_bake, v_tomorrow, 'd0000000-0000-4000-8000-000000000009', 'DINNER');
 
   INSERT INTO public.orders (id, user_id, target_location_id, date, status) VALUES
     (
@@ -244,10 +236,10 @@ BEGIN
     (v_order_ivan, v_menu_oats),
     (v_order_ivan, v_menu_borsch),
     (v_order_ivan, v_menu_buckwheat),
-    (v_order_oksana, v_menu_broth),
-    (v_order_oksana, v_menu_plov),
-    (v_order_oksana, v_menu_salad),
-    (v_order_petro, v_menu_omelet),
+    (v_order_oksana, v_menu_borsch),
+    (v_order_oksana, v_menu_buckwheat),
+    (v_order_oksana, v_menu_bake),
+    (v_order_petro, v_menu_oats),
     (v_order_petro, v_menu_bake);
 END;
 $$;

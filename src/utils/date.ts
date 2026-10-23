@@ -9,6 +9,33 @@ export function todayKyivIsoDate(now = new Date()): string {
   }).format(now);
 }
 
+export function defaultMenuCatalogRange(now = new Date()): { from: string; to: string } {
+  const today = todayKyivIsoDate(now);
+  return { from: addDaysIso(today, -2), to: addDaysIso(today, 2) };
+}
+
+export function eachIsoDateInRange(from: string, to: string): string[] {
+  if (from > to) {
+    return [];
+  }
+  const dates: string[] = [];
+  let current = from;
+  while (current <= to) {
+    dates.push(current);
+    current = addDaysIso(current, 1);
+  }
+  return dates;
+}
+
+export function formatWeekdayUk(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1));
+  return new Intl.DateTimeFormat("uk-UA", {
+    timeZone: "UTC",
+    weekday: "long",
+  }).format(date);
+}
+
 export function addDaysIso(isoDate: string, days: number): string {
   const [year, month, day] = isoDate.split("-").map(Number);
   const utc = Date.UTC(year ?? 1970, (month ?? 1) - 1, (day ?? 1) + days);

@@ -36,7 +36,8 @@
 
   @media print {
     header,
-    nav {
+    nav,
+    aside {
       display: none !important;
     }
 

@@ -6,7 +6,8 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { dictionary } from "@/constants/dictionary";
 import { ForceChangePasswordView } from "@/features/auth/ForceChangePasswordView";
 import { LoginView } from "@/features/auth/LoginView";
-import { MenuPanelView } from "@/features/admin/MenuPanelView";
+import { DailyMenuBuilder } from "@/features/admin/DailyMenuBuilder";
+import { DishCatalog } from "@/features/admin/DishCatalog";
 import { ReportsView } from "@/features/admin/ReportsView";
 import { UsersPanelView } from "@/features/admin/UsersPanelView";
 import { HistoryView } from "@/features/orders/HistoryView";
@@ -19,6 +20,7 @@ const userLinks = [
 ];
 
 const adminLinks = [
+  { to: "/admin/dishes", label: dictionary.nav.dishes },
   { to: "/admin/menu", label: dictionary.nav.menu },
   { to: "/admin/users", label: dictionary.nav.users },
   { to: "/admin/reports", label: dictionary.nav.reports },
@@ -46,8 +48,10 @@ export function App() {
             </Route>
           </Route>
           <Route element={<RequireAuth role="ADMIN" />}>
-            <Route element={<AppShell links={adminLinks} wide showPushBanner />}>
-              <Route path="/admin/menu" element={<MenuPanelView />} />
+            <Route element={<AppShell links={adminLinks} navPosition="sidebar" showPushBanner />}>
+              <Route path="/admin" element={<Navigate to="/admin/menu" replace />} />
+              <Route path="/admin/dishes" element={<DishCatalog />} />
+              <Route path="/admin/menu" element={<DailyMenuBuilder />} />
               <Route path="/admin/users" element={<UsersPanelView />} />
               <Route path="/admin/reports" element={<ReportsView />} />
             </Route>

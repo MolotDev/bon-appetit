@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { DashboardPage } from "@/components/shared/DashboardPage";
 import { ScreenState } from "@/components/ScreenState";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { dictionary } from "@/constants/dictionary";
+import { filterControlClassName } from "@/constants/form";
 import { OpsCheckPanel } from "@/features/admin/OpsCheckPanel";
 import { getDeliveryReport, getKitchenReport } from "@/services/api";
 import type { DeliveryReportRow, KitchenReportRow, MealType } from "@/types";
@@ -84,57 +84,56 @@ export function ReportsView() {
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold print:hidden">{dictionary.screens.adminReports}</h1>
-      <div className="flex flex-col gap-2 print:hidden">
-        <Label htmlFor="report-date">{dictionary.common.date}</Label>
-        <Input
-          id="report-date"
-          type="date"
-          className="h-11"
-          value={date}
-          onChange={(event) => setDate(event.target.value || defaultOrderTargetDate())}
-        />
-      </div>
-      <div className="flex flex-col gap-2 print:hidden sm:flex-row">
-        <Button type="button" variant="outline" className="h-11" onClick={() => window.print()}>
-          {dictionary.reports.print}
-        </Button>
-        <Button type="button" variant="outline" className="h-11" disabled={exporting} onClick={() => void onPdf()}>
-          {dictionary.reports.exportPdf}
-        </Button>
-        <Button type="button" className="h-11" onClick={() => void onCopy()}>
-          {dictionary.reports.copySummary}
-        </Button>
-      </div>
-      <div className="flex gap-2 print:hidden">
-        <Button
-          type="button"
-          variant={tab === "kitchen" ? "default" : "secondary"}
-          className="h-11 flex-1"
-          onClick={() => setTab("kitchen")}
-        >
-          {dictionary.reports.kitchenTitle}
-        </Button>
-        <Button
-          type="button"
-          variant={tab === "supply" ? "default" : "secondary"}
-          className="h-11 flex-1"
-          onClick={() => setTab("supply")}
-        >
-          {dictionary.reports.deliveryTitle}
-        </Button>
-      </div>
-
+    <DashboardPage
+      title={dictionary.screens.adminReports}
+      toolbar={
+        <>
+          <Input
+            id="report-date"
+            type="date"
+            className="h-10 w-44 shrink-0"
+            value={date}
+            onChange={(event) => setDate(event.target.value || defaultOrderTargetDate())}
+            aria-label={dictionary.common.date}
+          />
+          <select
+            className={cn(filterControlClassName, "w-44")}
+            value={tab}
+            onChange={(event) => setTab(event.target.value as ReportTab)}
+            aria-label={dictionary.reports.heading}
+          >
+            <option value="kitchen">{dictionary.reports.kitchenTitle}</option>
+            <option value="supply">{dictionary.reports.deliveryTitle}</option>
+          </select>
+          <Button type="button" variant="outline" className="h-10 shrink-0" onClick={() => window.print()}>
+            {dictionary.reports.print}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 shrink-0"
+            disabled={exporting}
+            onClick={() => void onPdf()}
+          >
+            {dictionary.reports.exportPdf}
+          </Button>
+          <Button type="button" className="ml-auto h-10 shrink-0" onClick={() => void onCopy()}>
+            {dictionary.reports.copySummary}
+          </Button>
+        </>
+      }
+      footer={
+        <div className="print:hidden">
+          <OpsCheckPanel />
+        </div>
+      }
+    >
       <ScreenState
         status={status}
         errorMessage={errorMessage}
         onRetry={() => void loadReports(date)}
       >
-        <div
-          ref={exportRef}
-          className={cn("flex flex-col gap-4 bg-background p-1", exporting && "p-4")}
-        >
+        <div ref={exportRef} className={cn("bg-background p-4", exporting && "p-4")}>
           <div className="hidden print:block">
             <h1 className="text-xl font-semibold">
               {dictionary.appName}: {dictionary.reports.heading} {formatDateUk(date)}
@@ -147,107 +146,68 @@ export function ReportsView() {
           ) : null}
 
           <div className={cn(tab === "kitchen" || exporting ? "block" : "hidden", "print:block")}>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">{dictionary.reports.kitchenTitle}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!hasKitchen ? (
-                  <p className="text-sm text-muted-foreground">{dictionary.reports.kitchenEmpty}</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="py-2 pr-3 font-medium">{dictionary.reports.category}</th>
-                          <th className="py-2 pr-3 font-medium">{dictionary.reports.dish}</th>
-                          <th className="py-2 font-medium">{dictionary.reports.portions}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {kitchen.map((row) => (
-                          <tr key={`${row.dish_title}-${row.meal_type}`} className="border-b last:border-0">
-                            <td className="py-2 pr-3">{dictionary.mealType[row.meal_type as MealType]}</td>
-                            <td className="py-2 pr-3">{row.dish_title}</td>
-                            <td className="py-2">{row.portions}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <h2 className="mb-3 text-base font-semibold">{dictionary.reports.kitchenTitle}</h2>
+            {!hasKitchen ? (
+              <p className="text-sm text-muted-foreground">{dictionary.reports.kitchenEmpty}</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted/60">
+                    <tr>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.category}</th>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.dish}</th>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.portions}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kitchen.map((row) => (
+                      <tr key={`${row.dish_title}-${row.meal_type}`} className="border-t">
+                        <td className="px-3 py-3">{dictionary.mealType[row.meal_type as MealType]}</td>
+                        <td className="px-3 py-3">{row.dish_title}</td>
+                        <td className="px-3 py-3">{row.portions}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
-          <div className={cn(tab === "supply" || exporting ? "block" : "hidden", "print:block")}>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">{dictionary.reports.deliveryTitle}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!hasSupply ? (
-                  <p className="text-sm text-muted-foreground">{dictionary.reports.deliveryEmpty}</p>
-                ) : (
-                  <>
-                    <div className="mb-4 hidden overflow-x-auto md:block">
-                      <table className="w-full text-left text-sm">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="py-2 pr-3 font-medium">{dictionary.reports.location}</th>
-                            <th className="py-2 pr-3 font-medium">{dictionary.reports.breakfast}</th>
-                            <th className="py-2 pr-3 font-medium">{dictionary.reports.lunchFirst}</th>
-                            <th className="py-2 pr-3 font-medium">{dictionary.reports.lunchSecond}</th>
-                            <th className="py-2 pr-3 font-medium">{dictionary.reports.dinner}</th>
-                            <th className="py-2 font-medium">{dictionary.reports.kits}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {delivery.map((row) => (
-                            <tr key={row.location_name} className="border-b last:border-0">
-                              <td className="py-2 pr-3">{row.location_name}</td>
-                              <td className="py-2 pr-3">{row.breakfast_count}</td>
-                              <td className="py-2 pr-3">{row.lunch_first_count}</td>
-                              <td className="py-2 pr-3">{row.lunch_second_count}</td>
-                              <td className="py-2 pr-3">{row.dinner_count}</td>
-                              <td className="py-2">{row.kits_count ?? 0}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="flex flex-col gap-3 md:hidden print:hidden">
-                      {delivery.map((row) => (
-                        <div key={row.location_name} className="rounded-lg border p-3 text-sm">
-                          <p className="font-medium">{row.location_name}</p>
-                          <p>
-                            {dictionary.reports.breakfast}: {row.breakfast_count}
-                          </p>
-                          <p>
-                            {dictionary.reports.lunchFirst}: {row.lunch_first_count}
-                          </p>
-                          <p>
-                            {dictionary.reports.lunchSecond}: {row.lunch_second_count}
-                          </p>
-                          <p>
-                            {dictionary.reports.dinner}: {row.dinner_count}
-                          </p>
-                          <p>
-                            {dictionary.reports.kits}: {row.kits_count ?? 0}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+          <div className={cn("mt-4", tab === "supply" || exporting ? "block" : "hidden", "print:block")}>
+            <h2 className="mb-3 text-base font-semibold">{dictionary.reports.deliveryTitle}</h2>
+            {!hasSupply ? (
+              <p className="text-sm text-muted-foreground">{dictionary.reports.deliveryEmpty}</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="bg-muted/60">
+                    <tr>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.location}</th>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.breakfast}</th>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.lunchFirst}</th>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.lunchSecond}</th>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.dinner}</th>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.kits}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {delivery.map((row) => (
+                      <tr key={row.location_name} className="border-t">
+                        <td className="px-3 py-3">{row.location_name}</td>
+                        <td className="px-3 py-3">{row.breakfast_count}</td>
+                        <td className="px-3 py-3">{row.lunch_first_count}</td>
+                        <td className="px-3 py-3">{row.lunch_second_count}</td>
+                        <td className="px-3 py-3">{row.dinner_count}</td>
+                        <td className="px-3 py-3">{row.kits_count ?? 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </ScreenState>
-      <div className="print:hidden">
-        <OpsCheckPanel />
-      </div>
-    </section>
+    </DashboardPage>
   );
 }

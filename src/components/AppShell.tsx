@@ -9,7 +9,7 @@ import { cn } from "@/utils/cn";
 
 type AppShellProps = {
   links: Array<{ to: string; label: string }>;
-  navPosition?: "top" | "bottom";
+  navPosition?: "top" | "bottom" | "sidebar";
   showPushBanner?: boolean;
   wide?: boolean;
 };
@@ -30,6 +30,64 @@ export function AppShell({
     void syncGrantedPushSubscription(profile.id).catch(() => undefined);
   }, [profile]);
 
+  const isSidebar = navPosition === "sidebar";
+
+  function navItems(compact: boolean) {
+    return links.map((link) => (
+      <NavLink
+        key={link.to}
+        to={link.to}
+        className={({ isActive }) =>
+          cn(
+            "flex min-h-11 items-center rounded-md px-3 py-2 text-sm font-medium active:opacity-70",
+            compact ? "justify-start" : "flex-1 justify-center",
+            isActive ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent",
+          )
+        }
+        end={link.to === "/"}
+      >
+        {link.label}
+      </NavLink>
+    ));
+  }
+
+  const logoutButton = (
+    <Button type="button" variant="outline" size="sm" className="h-11" onClick={() => void logout()}>
+      {dictionary.common.logout}
+    </Button>
+  );
+
+  if (isSidebar) {
+    return (
+      <div className="flex min-h-dvh w-full">
+        <aside className="hidden w-56 shrink-0 flex-col border-r bg-card print:hidden md:flex">
+          <div className="border-b px-4 py-4">
+            <p className="text-sm font-semibold">{dictionary.appName}</p>
+            <p className="text-xs text-muted-foreground">{profile?.full_name}</p>
+          </div>
+          <nav className="flex flex-1 flex-col gap-1 p-2">{navItems(true)}</nav>
+          <div className="border-t p-3">{logoutButton}</div>
+        </aside>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="flex items-center justify-between gap-3 border-b bg-card px-4 py-3 md:hidden print:hidden">
+            <div>
+              <p className="text-sm font-semibold">{dictionary.appName}</p>
+              <p className="text-xs text-muted-foreground">{profile?.full_name}</p>
+            </div>
+            {logoutButton}
+          </header>
+          <nav className="flex gap-1 overflow-x-auto border-b bg-card px-2 py-2 print:hidden md:hidden">
+            {navItems(false)}
+          </nav>
+          <main className="flex flex-1 flex-col gap-3 bg-muted/40 p-4">
+            {showPushBanner && profile ? <PushOptInBanner userId={profile.id} /> : null}
+            <Outlet />
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   const nav = (
     <nav
       className={cn(
@@ -39,21 +97,7 @@ export function AppShell({
           : "overflow-x-auto border-b px-2 py-2",
       )}
     >
-      {links.map((link) => (
-        <NavLink
-          key={link.to}
-          to={link.to}
-          className={({ isActive }) =>
-            cn(
-              "flex min-h-11 flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium active:opacity-70",
-              isActive ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent",
-            )
-          }
-          end={link.to === "/" || link.to === "/admin/menu"}
-        >
-          {link.label}
-        </NavLink>
-      ))}
+      {navItems(false)}
     </nav>
   );
 
@@ -64,9 +108,7 @@ export function AppShell({
           <p className="text-sm font-semibold">{dictionary.appName}</p>
           <p className="text-xs text-muted-foreground">{profile?.full_name}</p>
         </div>
-        <Button type="button" variant="outline" size="sm" className="h-11" onClick={() => void logout()}>
-          {dictionary.common.logout}
-        </Button>
+        {logoutButton}
       </header>
       {navPosition === "top" ? nav : null}
       <div

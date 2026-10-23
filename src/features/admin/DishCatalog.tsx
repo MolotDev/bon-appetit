@@ -1,40 +1,70 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { DashboardPage } from "@/components/shared/DashboardPage";
 import { ScreenState } from "@/components/ScreenState";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { dictionary } from "@/constants/dictionary";
-import { createDish, updateDish } from "@/services/api";
+import { filterControlClassName, selectClassName } from "@/constants/form";
+import { createDish, listDishes, updateDish } from "@/services/api";
 import { MEAL_TYPES, type Dish, type MealType } from "@/types";
 import { cn } from "@/utils/cn";
 
-const selectClassName =
-  "h-11 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50";
+type StatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
+type MealFilter = "ALL" | MealType;
 
-type DishCatalogProps = {
-  dishes: Dish[];
-  status: "loading" | "empty" | "error" | "success";
-  errorMessage: string;
-  onReload: () => void;
-};
-
-export function DishCatalog({ dishes, status, errorMessage, onReload }: DishCatalogProps) {
+export function DishCatalog() {
+  const [dishes, setDishes] = useState<Dish[]>([]);
+  const [status, setStatus] = useState<"loading" | "empty" | "error" | "success">("loading");
+  const [errorMessage, setErrorMessage] = useState<string>(dictionary.states.errorGeneric);
+  const [query, setQuery] = useState("");
+  const [mealFilter, setMealFilter] = useState<MealFilter>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [mealType, setMealType] = useState<MealType>("BREAKFAST");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const grouped = useMemo(
-    () =>
-      MEAL_TYPES.map((type) => ({
-        mealType: type,
-        rows: dishes.filter((dish) => dish.meal_type === type),
-      })),
-    [dishes],
-  );
+  async function load() {
+    setStatus("loading");
+    try {
+      const rows = await listDishes();
+      setDishes(rows);
+      setStatus(rows.length === 0 ? "empty" : "success");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : dictionary.states.errorGeneric);
+      setStatus("error");
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return dishes.filter((dish) => {
+      const matchesMeal = mealFilter === "ALL" || dish.meal_type === mealFilter;
+      const matchesStatus =
+        statusFilter === "ALL" ||
+        (statusFilter === "ACTIVE" ? dish.is_active : !dish.is_active);
+      const matchesQuery =
+        needle.length === 0 ||
+        dish.title.toLowerCase().includes(needle) ||
+        dish.description.toLowerCase().includes(needle);
+      return matchesMeal && matchesStatus && matchesQuery;
+    });
+  }, [dishes, mealFilter, query, statusFilter]);
+
+  const listStatus = status === "success" && filtered.length === 0 ? "empty" : status;
+  const emptyMessage =
+    dishes.length > 0 && filtered.length === 0
+      ? dictionary.states.emptyGeneric
+      : dictionary.menu.dishesEmpty;
 
   function resetForm() {
     setEditingId(null);
@@ -43,11 +73,17 @@ export function DishCatalog({ dishes, status, errorMessage, onReload }: DishCata
     setDescription("");
   }
 
-  function startEdit(dish: Dish) {
+  function openCreate() {
+    resetForm();
+    setModalOpen(true);
+  }
+
+  function openEdit(dish: Dish) {
     setEditingId(dish.id);
     setTitle(dish.title);
     setMealType(dish.meal_type);
     setDescription(dish.description);
+    setModalOpen(true);
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -75,8 +111,9 @@ export function DishCatalog({ dishes, status, errorMessage, onReload }: DishCata
         });
         toast.success(dictionary.menu.dishSaved);
       }
+      setModalOpen(false);
       resetForm();
-      onReload();
+      await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : dictionary.states.errorGeneric);
     } finally {
@@ -88,7 +125,7 @@ export function DishCatalog({ dishes, status, errorMessage, onReload }: DishCata
     setSaving(true);
     try {
       await updateDish(dish.id, { is_active: !dish.is_active });
-      onReload();
+      await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : dictionary.states.errorGeneric);
     } finally {
@@ -97,116 +134,144 @@ export function DishCatalog({ dishes, status, errorMessage, onReload }: DishCata
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">{dictionary.menu.catalogTitle}</h2>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            {editingId ? dictionary.menu.editDish : dictionary.menu.addDish}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="dish-title">{dictionary.menu.title}</Label>
-              <Input
-                id="dish-title"
-                className="h-11"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="dish-category">{dictionary.menu.category}</Label>
-              <select
-                id="dish-category"
-                className={selectClassName}
-                value={mealType}
-                onChange={(event) => setMealType(event.target.value as MealType)}
-              >
-                {MEAL_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {dictionary.mealType[type]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="dish-description">{dictionary.menu.description}</Label>
-              <textarea
-                id="dish-description"
-                className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button type="submit" className="h-11" disabled={saving}>
-                {dictionary.common.save}
-              </Button>
-              {editingId ? (
-                <Button type="button" variant="outline" className="h-11" onClick={resetForm}>
-                  {dictionary.common.cancel}
-                </Button>
-              ) : null}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <ScreenState
-        status={status}
-        emptyMessage={dictionary.menu.dishesEmpty}
-        errorMessage={errorMessage}
-        onRetry={onReload}
+    <>
+      <DashboardPage
+        title={dictionary.screens.adminDishes}
+        toolbar={
+          <>
+            <Input
+              className="h-10 w-56 shrink-0"
+              value={query}
+              placeholder={dictionary.common.search}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <select
+              className={cn(filterControlClassName, "w-40")}
+              value={mealFilter}
+              onChange={(event) => setMealFilter(event.target.value as MealFilter)}
+              aria-label={dictionary.menu.category}
+            >
+              <option value="ALL">{dictionary.menu.allCategories}</option>
+              {MEAL_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {dictionary.mealType[type]}
+                </option>
+              ))}
+            </select>
+            <select
+              className={cn(filterControlClassName, "w-40")}
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+              aria-label={dictionary.menu.status}
+            >
+              <option value="ALL">{dictionary.menu.allStatuses}</option>
+              <option value="ACTIVE">{dictionary.menu.statusActive}</option>
+              <option value="INACTIVE">{dictionary.menu.statusInactive}</option>
+            </select>
+            <Button type="button" className="ml-auto h-10 shrink-0" onClick={openCreate}>
+              {dictionary.menu.addDish}
+            </Button>
+          </>
+        }
       >
-        <div className="flex flex-col gap-4">
-          {grouped.map((group) =>
-            group.rows.length === 0 ? null : (
-              <div key={group.mealType} className="flex flex-col gap-2">
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  {dictionary.mealType[group.mealType]}
-                </h3>
-                {group.rows.map((dish) => (
-                  <Card key={dish.id} className={cn(!dish.is_active && "opacity-70")}>
-                    <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="font-medium">{dish.title}</p>
-                        {dish.description ? (
-                          <p className="text-sm text-muted-foreground">{dish.description}</p>
-                        ) : null}
-                        {!dish.is_active ? (
-                          <p className="text-xs text-muted-foreground">{dictionary.menu.inactive}</p>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-col gap-2 sm:flex-row">
+        <ScreenState
+          status={listStatus}
+          emptyMessage={emptyMessage}
+          errorMessage={errorMessage}
+          onRetry={() => void load()}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="bg-muted/60">
+                <tr>
+                  <th className="px-3 py-3 font-medium">{dictionary.menu.title}</th>
+                  <th className="px-3 py-3 font-medium">{dictionary.menu.category}</th>
+                  <th className="px-3 py-3 font-medium">{dictionary.menu.description}</th>
+                  <th className="px-3 py-3 font-medium">{dictionary.menu.status}</th>
+                  <th className="px-3 py-3 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((dish) => (
+                  <tr key={dish.id} className={cn("border-t", !dish.is_active && "text-muted-foreground")}>
+                    <td className="px-3 py-3 font-medium">{dish.title}</td>
+                    <td className="px-3 py-3">{dictionary.mealType[dish.meal_type]}</td>
+                    <td className="px-3 py-3">{dish.description}</td>
+                    <td className="px-3 py-3">
+                      {dish.is_active ? dictionary.menu.statusActive : dictionary.menu.inactive}
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex justify-end gap-2">
                         <Button
                           type="button"
                           variant="outline"
-                          className="h-11"
+                          size="sm"
                           disabled={saving}
-                          onClick={() => startEdit(dish)}
+                          onClick={() => openEdit(dish)}
                         >
                           {dictionary.common.edit}
                         </Button>
                         <Button
                           type="button"
                           variant={dish.is_active ? "secondary" : "default"}
-                          className="h-11"
+                          size="sm"
                           disabled={saving}
                           onClick={() => void onToggleActive(dish)}
                         >
                           {dish.is_active ? dictionary.menu.deactivate : dictionary.menu.activate}
                         </Button>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            ),
-          )}
-        </div>
-      </ScreenState>
-    </section>
+              </tbody>
+            </table>
+          </div>
+        </ScreenState>
+      </DashboardPage>
+
+      <Dialog
+        open={modalOpen}
+        title={editingId ? dictionary.menu.editDish : dictionary.menu.addDish}
+        onClose={() => {
+          setModalOpen(false);
+          resetForm();
+        }}
+      >
+        <form className="flex flex-col gap-4" onSubmit={(event) => void onSubmit(event)}>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="dish-title">{dictionary.menu.title}</Label>
+            <Input id="dish-title" value={title} onChange={(event) => setTitle(event.target.value)} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="dish-category">{dictionary.menu.category}</Label>
+            <select
+              id="dish-category"
+              className={selectClassName}
+              value={mealType}
+              onChange={(event) => setMealType(event.target.value as MealType)}
+            >
+              {MEAL_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {dictionary.mealType[type]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="dish-description">{dictionary.menu.description}</Label>
+            <textarea
+              id="dish-description"
+              className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+            />
+          </div>
+          <Button type="submit" className="h-10" disabled={saving}>
+            {dictionary.common.save}
+          </Button>
+        </form>
+      </Dialog>
+    </>
   );
 }

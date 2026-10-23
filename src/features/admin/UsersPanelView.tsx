@@ -1,11 +1,13 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { DashboardPage } from "@/components/shared/DashboardPage";
 import { ScreenState } from "@/components/ScreenState";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { dictionary } from "@/constants/dictionary";
+import { filterControlClassName, selectClassName } from "@/constants/form";
 import {
   invokeAdminUsers,
   listLocations,
@@ -16,9 +18,6 @@ import { useAuthStore } from "@/stores/authStore";
 import type { Location, Profile, UserRole } from "@/types";
 import { cn } from "@/utils/cn";
 import { generateTempPassword } from "@/utils/password";
-
-const selectClassName =
-  "h-11 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50";
 
 function mapAdminError(message: string): string {
   switch (message) {
@@ -39,6 +38,15 @@ async function copyToClipboard(value: string): Promise<void> {
   await navigator.clipboard.writeText(value);
 }
 
+type ModalMode = "closed" | "create" | "edit" | "password";
+
+const emptyForm = {
+  username: "",
+  fullName: "",
+  role: "USER" as UserRole,
+  locationId: "",
+};
+
 export function UsersPanelView() {
   const currentUserId = useAuthStore((state) => state.profile?.id);
   const [status, setStatus] = useState<"loading" | "empty" | "error" | "success">("loading");
@@ -46,13 +54,14 @@ export function UsersPanelView() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [query, setQuery] = useState("");
-  const [username, setUsername] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<UserRole>("USER");
-  const [locationId, setLocationId] = useState("");
-  const [tempPassword, setTempPassword] = useState(generateTempPassword);
+  const [roleFilter, setRoleFilter] = useState<"ALL" | UserRole>("ALL");
+  const [form, setForm] = useState(emptyForm);
+  const [editingUser, setEditingUser] = useState<Profile | null>(null);
+  const [modal, setModal] = useState<ModalMode>("closed");
   const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [passwordUserId, setPasswordUserId] = useState<string | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function load() {
@@ -74,15 +83,15 @@ export function UsersPanelView() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) {
-      return users;
-    }
-    return users.filter(
-      (user) =>
+    return users.filter((user) => {
+      const matchesRole = roleFilter === "ALL" || user.role === roleFilter;
+      const matchesQuery =
+        needle.length === 0 ||
         user.full_name.toLowerCase().includes(needle) ||
-        user.username.toLowerCase().includes(needle),
-    );
-  }, [query, users]);
+        user.username.toLowerCase().includes(needle);
+      return matchesRole && matchesQuery;
+    });
+  }, [query, roleFilter, users]);
 
   const listStatus = status === "success" && filtered.length === 0 ? "empty" : status;
   const emptyMessage =
@@ -97,11 +106,51 @@ export function UsersPanelView() {
     return locations.find((location) => location.id === id)?.name ?? dictionary.users.locationNone;
   }
 
-  async function onCreate(event: FormEvent<HTMLFormElement>) {
+  function openCreate() {
+    setForm(emptyForm);
+    setEditingUser(null);
+    setRevealedPassword(null);
+    setPasswordUserId(null);
+    setPasswordCopied(false);
+    setModal("create");
+  }
+
+  function openEdit(user: Profile) {
+    setEditingUser(user);
+    setForm({
+      username: user.username,
+      fullName: user.full_name,
+      role: user.role,
+      locationId: user.default_location_id ?? "",
+    });
+    setRevealedPassword(null);
+    setPasswordCopied(false);
+    setModal("edit");
+  }
+
+  function openPassword(userId: string, password: string) {
+    setPasswordUserId(userId);
+    setRevealedPassword(password);
+    setPasswordCopied(false);
+    setModal("password");
+  }
+
+  function closeModal() {
+    if (modal === "password" && !passwordCopied) {
+      return;
+    }
+    setModal("closed");
+    setEditingUser(null);
+    setRevealedPassword(null);
+    setPasswordUserId(null);
+    setPasswordCopied(false);
+  }
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const nextUsername = username.trim().toLowerCase();
-    const nextFullName = fullName.trim();
-    if (!/^[a-z0-9._-]{3,32}$/.test(nextUsername)) {
+    const nextUsername = form.username.trim().toLowerCase();
+    const nextFullName = form.fullName.trim();
+    if (modal === "create" && !/^[a-z0-9._-]{3,32}$/.test(nextUsername)) {
       toast.error(dictionary.users.usernameInvalid);
       return;
     }
@@ -109,28 +158,62 @@ export function UsersPanelView() {
       toast.error(dictionary.users.fullNameInvalid);
       return;
     }
-    setCreating(true);
+    setSaving(true);
     try {
+      if (modal === "edit" && editingUser) {
+        const updated = await updateProfile(editingUser.id, {
+          full_name: nextFullName,
+          role: form.role,
+          default_location_id: form.locationId.length > 0 ? form.locationId : null,
+        });
+        setUsers((current) => current.map((row) => (row.id === updated.id ? updated : row)));
+        toast.success(dictionary.users.updated);
+        setModal("closed");
+        return;
+      }
+
+      const password = generateTempPassword();
       const result = await invokeAdminUsers({
         action: "create",
         username: nextUsername,
         full_name: nextFullName,
-        role,
-        default_location_id: locationId.length > 0 ? locationId : null,
-        password: tempPassword,
+        role: form.role,
+        default_location_id: form.locationId.length > 0 ? form.locationId : null,
+        password,
       });
-      setRevealedPassword(result.password ?? tempPassword);
-      setUsername("");
-      setFullName("");
-      setRole("USER");
-      setLocationId("");
-      setTempPassword(generateTempPassword());
       toast.success(dictionary.users.created);
+      await load();
+      setPasswordUserId(result.user_id);
+      setRevealedPassword(null);
+      setPasswordCopied(false);
+      setModal("password");
+    } catch (error) {
+      toast.error(mapAdminError(error instanceof Error ? error.message : ""));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onGeneratePassword() {
+    if (!passwordUserId) {
+      return;
+    }
+    setSaving(true);
+    try {
+      const nextPassword = generateTempPassword();
+      const result = await invokeAdminUsers({
+        action: "reset_password",
+        user_id: passwordUserId,
+        password: nextPassword,
+      });
+      setRevealedPassword(result.password ?? nextPassword);
+      setPasswordCopied(false);
+      toast.success(dictionary.users.passwordReset);
       await load();
     } catch (error) {
       toast.error(mapAdminError(error instanceof Error ? error.message : ""));
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
 
@@ -159,9 +242,9 @@ export function UsersPanelView() {
         user_id: user.id,
         password: nextPassword,
       });
-      setRevealedPassword(result.password ?? nextPassword);
       toast.success(dictionary.users.passwordReset);
       await load();
+      openPassword(user.id, result.password ?? nextPassword);
     } catch (error) {
       toast.error(mapAdminError(error instanceof Error ? error.message : ""));
     } finally {
@@ -195,61 +278,213 @@ export function UsersPanelView() {
     }
     try {
       await copyToClipboard(revealedPassword);
+      setPasswordCopied(true);
       toast.success(dictionary.common.copied);
     } catch {
       toast.error(dictionary.states.errorGeneric);
     }
   }
 
-  return (
-    <section className="flex flex-col gap-5">
-      <h1 className="text-xl font-semibold">{dictionary.screens.adminUsers}</h1>
+  const dialogTitle =
+    modal === "edit"
+      ? dictionary.users.editTitle
+      : modal === "password"
+        ? dictionary.users.tempPassword
+        : dictionary.users.createTitle;
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{dictionary.users.createTitle}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="flex flex-col gap-4" onSubmit={onCreate}>
+  return (
+    <>
+      <DashboardPage
+        title={dictionary.screens.adminUsers}
+        toolbar={
+          <>
+            <Input
+              id="user-filter"
+              className="h-10 w-56 shrink-0"
+              value={query}
+              placeholder={dictionary.users.filter}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <select
+              className={cn(filterControlClassName, "w-40")}
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value as "ALL" | UserRole)}
+              aria-label={dictionary.users.role}
+            >
+              <option value="ALL">{dictionary.users.allRoles}</option>
+              <option value="USER">{dictionary.role.USER}</option>
+              <option value="ADMIN">{dictionary.role.ADMIN}</option>
+            </select>
+            <Button type="button" className="ml-auto h-10 shrink-0" onClick={openCreate}>
+              {dictionary.common.create}
+            </Button>
+          </>
+        }
+      >
+        <ScreenState
+          status={listStatus}
+          emptyMessage={emptyMessage}
+          errorMessage={errorMessage}
+          onRetry={() => void load()}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="bg-muted/60">
+                <tr>
+                  <th className="px-3 py-3 font-medium">{dictionary.users.fullName}</th>
+                  <th className="px-3 py-3 font-medium">{dictionary.users.username}</th>
+                  <th className="px-3 py-3 font-medium">{dictionary.users.role}</th>
+                  <th className="px-3 py-3 font-medium">{dictionary.users.location}</th>
+                  <th className="px-3 py-3 font-medium">{dictionary.users.block}</th>
+                  <th className="px-3 py-3 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((user) => {
+                  const isSelf = user.id === currentUserId;
+                  const busy = busyId === user.id;
+                  return (
+                    <tr key={user.id} className="border-t">
+                      <td className="px-3 py-3">
+                        <p className="font-medium">{user.full_name}</p>
+                        {user.must_change_password ? (
+                          <p className="text-xs text-muted-foreground">
+                            {dictionary.users.mustChangePassword}
+                          </p>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-3">{user.username}</td>
+                      <td className="px-3 py-3">{dictionary.role[user.role]}</td>
+                      <td className="px-3 py-3">{locationName(user.default_location_id)}</td>
+                      <td className="px-3 py-3">
+                        <BlockSwitch
+                          blocked={user.is_blocked}
+                          disabled={busy || isSelf}
+                          onToggle={() => void onToggleBlock(user)}
+                        />
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => openEdit(user)}
+                          >
+                            {dictionary.common.edit}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => void onResetPassword(user)}
+                          >
+                            {dictionary.users.resetPassword}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            disabled={busy || isSelf}
+                            onClick={() => void onDelete(user)}
+                          >
+                            {dictionary.common.delete}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </ScreenState>
+      </DashboardPage>
+
+      <Dialog
+        open={modal !== "closed"}
+        title={dialogTitle}
+        closeDisabled={modal === "password" && !passwordCopied}
+        onClose={closeModal}
+      >
+        {modal === "password" ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">{dictionary.users.copyThenClose}</p>
+            {revealedPassword ? (
+              <p className="rounded-md border bg-muted/40 px-3 py-2 font-mono text-sm">{revealedPassword}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">{dictionary.users.generateAfterCreate}</p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-10"
+                disabled={saving || !passwordUserId}
+                onClick={() => void onGeneratePassword()}
+              >
+                {dictionary.users.generatePassword}
+              </Button>
+              <Button
+                type="button"
+                className="h-10"
+                disabled={!revealedPassword}
+                onClick={() => void onCopyPassword()}
+              >
+                {dictionary.users.copyPassword}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form className="flex flex-col gap-4" onSubmit={(event) => void onSubmit(event)}>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="new-username">{dictionary.users.username}</Label>
+              <Label htmlFor="user-username">{dictionary.users.username}</Label>
               <Input
-                id="new-username"
-                className="h-11"
+                id="user-username"
                 autoComplete="off"
-                value={username}
-                onChange={(event) => setUsername(event.target.value.toLowerCase())}
+                disabled={modal === "edit"}
+                value={form.username}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, username: event.target.value.toLowerCase() }))
+                }
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="new-full-name">{dictionary.users.fullName}</Label>
+              <Label htmlFor="user-full-name">{dictionary.users.fullName}</Label>
               <Input
-                id="new-full-name"
-                className="h-11"
+                id="user-full-name"
                 autoComplete="off"
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
+                value={form.fullName}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, fullName: event.target.value }))
+                }
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="new-role">{dictionary.users.role}</Label>
+              <Label htmlFor="user-role">{dictionary.users.role}</Label>
               <select
-                id="new-role"
+                id="user-role"
                 className={selectClassName}
-                value={role}
-                onChange={(event) => setRole(event.target.value as UserRole)}
+                value={form.role}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, role: event.target.value as UserRole }))
+                }
               >
                 <option value="USER">{dictionary.role.USER}</option>
                 <option value="ADMIN">{dictionary.role.ADMIN}</option>
               </select>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="new-location">{dictionary.users.location}</Label>
+              <Label htmlFor="user-location">{dictionary.users.location}</Label>
               <select
-                id="new-location"
+                id="user-location"
                 className={selectClassName}
-                value={locationId}
-                onChange={(event) => setLocationId(event.target.value)}
+                value={form.locationId}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, locationId: event.target.value }))
+                }
               >
                 <option value="">{dictionary.users.locationNone}</option>
                 {locations.map((location) => (
@@ -259,181 +494,16 @@ export function UsersPanelView() {
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="temp-password">{dictionary.users.tempPassword}</Label>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Input id="temp-password" className="h-11 font-mono" readOnly value={tempPassword} />
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 flex-1 sm:flex-none"
-                    onClick={() =>
-                      void copyToClipboard(tempPassword)
-                        .then(() => toast.success(dictionary.common.copied))
-                        .catch(() => toast.error(dictionary.states.errorGeneric))
-                    }
-                  >
-                    {dictionary.common.copy}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="h-11 flex-1 sm:flex-none"
-                    onClick={() => setTempPassword(generateTempPassword())}
-                  >
-                    {dictionary.users.generatePassword}
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <Button type="submit" className="h-11" disabled={creating}>
-              {dictionary.common.create}
+            {modal === "create" ? (
+              <p className="text-sm text-muted-foreground">{dictionary.users.generateAfterCreate}</p>
+            ) : null}
+            <Button type="submit" className="h-10" disabled={saving}>
+              {modal === "edit" ? dictionary.common.save : dictionary.common.create}
             </Button>
           </form>
-        </CardContent>
-      </Card>
-
-      {revealedPassword ? (
-        <div className="flex flex-col gap-2 rounded-lg border border-primary/20 bg-accent p-3 sm:flex-row sm:items-center">
-          <p className="flex-1 text-sm">
-            {dictionary.users.tempPassword}: <span className="font-mono font-medium">{revealedPassword}</span>
-          </p>
-          <Button type="button" size="sm" className="h-11" onClick={() => void onCopyPassword()}>
-            {dictionary.users.copyPassword}
-          </Button>
-        </div>
-      ) : null}
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="user-filter">{dictionary.users.filter}</Label>
-        <Input
-          id="user-filter"
-          className="h-11"
-          value={query}
-          placeholder={dictionary.common.search}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </div>
-
-      <ScreenState
-        status={listStatus}
-        emptyMessage={emptyMessage}
-        errorMessage={errorMessage}
-        onRetry={() => void load()}
-      >
-        <div className="hidden overflow-x-auto rounded-lg border md:block">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="bg-muted/60">
-              <tr>
-                <th className="px-3 py-3 font-medium">{dictionary.users.fullName}</th>
-                <th className="px-3 py-3 font-medium">{dictionary.users.username}</th>
-                <th className="px-3 py-3 font-medium">{dictionary.users.role}</th>
-                <th className="px-3 py-3 font-medium">{dictionary.users.location}</th>
-                <th className="px-3 py-3 font-medium">{dictionary.users.block}</th>
-                <th className="px-3 py-3 font-medium" />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((user) => {
-                const isSelf = user.id === currentUserId;
-                const busy = busyId === user.id;
-                return (
-                  <tr key={user.id} className="border-t">
-                    <td className="px-3 py-3">
-                      <p className="font-medium">{user.full_name}</p>
-                      {user.must_change_password ? (
-                        <p className="text-xs text-muted-foreground">{dictionary.users.mustChangePassword}</p>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-3">{user.username}</td>
-                    <td className="px-3 py-3">{dictionary.role[user.role]}</td>
-                    <td className="px-3 py-3">{locationName(user.default_location_id)}</td>
-                    <td className="px-3 py-3">
-                      <BlockSwitch
-                        blocked={user.is_blocked}
-                        disabled={busy || isSelf}
-                        onToggle={() => void onToggleBlock(user)}
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => void onResetPassword(user)}
-                        >
-                          {dictionary.users.resetPassword}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          disabled={busy || isSelf}
-                          onClick={() => void onDelete(user)}
-                        >
-                          {dictionary.common.delete}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex flex-col gap-3 md:hidden">
-          {filtered.map((user) => {
-            const isSelf = user.id === currentUserId;
-            const busy = busyId === user.id;
-            return (
-              <Card key={user.id}>
-                <CardHeader className="p-4 pb-2">
-                  <CardTitle className="text-base">{user.full_name}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3 p-4 pt-2 text-sm">
-                  <p>{user.username}</p>
-                  <p>{dictionary.role[user.role]}</p>
-                  <p className="text-muted-foreground">{locationName(user.default_location_id)}</p>
-                  {user.must_change_password ? (
-                    <p className="text-muted-foreground">{dictionary.users.mustChangePassword}</p>
-                  ) : null}
-                  <div className="flex items-center justify-between gap-3">
-                    <span>{dictionary.users.block}</span>
-                    <BlockSwitch
-                      blocked={user.is_blocked}
-                      disabled={busy || isSelf}
-                      onToggle={() => void onToggleBlock(user)}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11"
-                    disabled={busy}
-                    onClick={() => void onResetPassword(user)}
-                  >
-                    {dictionary.users.resetPassword}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    className="h-11"
-                    disabled={busy || isSelf}
-                    onClick={() => void onDelete(user)}
-                  >
-                    {dictionary.common.delete}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </ScreenState>
-    </section>
+        )}
+      </Dialog>
+    </>
   );
 }
 

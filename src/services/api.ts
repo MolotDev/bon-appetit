@@ -256,6 +256,21 @@ export async function getDailyMenu(
   return assertOk(data, error, "getDailyMenu");
 }
 
+export async function getDailyMenusInRange(
+  from: string,
+  to: string,
+  client: BonAppetitClient = getSupabaseClient(),
+) {
+  const { data, error } = await client
+    .from("daily_menu")
+    .select("*, dishes(*)")
+    .gte("date", from)
+    .lte("date", to)
+    .order("date")
+    .order("meal_type");
+  return assertOk(data, error, "getDailyMenusInRange");
+}
+
 export async function getOwnOrderForDate(
   userId: string,
   date: string,
