@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { dictionary } from "@/constants/dictionary";
+import { OpsCheckPanel } from "@/features/admin/OpsCheckPanel";
 import { getDeliveryReport, getKitchenReport } from "@/services/api";
 import type { DeliveryReportRow, KitchenReportRow, MealType } from "@/types";
 import { cn } from "@/utils/cn";
@@ -244,6 +245,9 @@ export function ReportsView() {
           </div>
         </div>
       </ScreenState>
+      <div className="print:hidden">
+        <OpsCheckPanel />
+      </div>
     </section>
   );
 }

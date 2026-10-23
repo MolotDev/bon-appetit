@@ -15,10 +15,14 @@ major_version = 15
 enabled = true
 schema_paths = []
 
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
 [auth]
 enabled = true
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["http://localhost:3000"]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
 jwt_expiry = 3600
 enable_signup = false
 

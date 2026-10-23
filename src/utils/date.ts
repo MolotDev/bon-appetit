@@ -52,6 +52,15 @@ export function isAdminMenuDeadlineOpen(targetDate: string, now = new Date()): b
   return kyivHour(now) < ADMIN_MENU_DEADLINE_HOUR;
 }
 
+export function formatKyivNow(now = new Date()): string {
+  return new Intl.DateTimeFormat("uk-UA", {
+    timeZone: TIMEZONE,
+    dateStyle: "medium",
+    timeStyle: "short",
+    hourCycle: "h23",
+  }).format(now);
+}
+
 export function formatDateUk(isoDate: string): string {
   const [year, month, day] = isoDate.split("-").map(Number);
   const date = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1));

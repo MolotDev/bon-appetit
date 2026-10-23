@@ -46,7 +46,7 @@ export function App() {
             </Route>
           </Route>
           <Route element={<RequireAuth role="ADMIN" />}>
-            <Route element={<AppShell links={adminLinks} wide />}>
+            <Route element={<AppShell links={adminLinks} wide showPushBanner />}>
               <Route path="/admin/menu" element={<MenuPanelView />} />
               <Route path="/admin/users" element={<UsersPanelView />} />
               <Route path="/admin/reports" element={<ReportsView />} />

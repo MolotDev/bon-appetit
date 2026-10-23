@@ -341,6 +341,30 @@ export async function replaceOrderItems(
   return assertOk(data, error, "replaceOrderItems.insert");
 }
 
+export async function invokeSendPush(
+  payload: {
+    title: string;
+    body: string;
+    url?: string;
+    user_ids?: string[];
+  },
+  client: BonAppetitClient = getSupabaseClient(),
+) {
+  const { data, error } = await client.functions.invoke<{
+    sent?: number;
+    failed?: number;
+    removed?: number;
+    error?: string;
+  }>("send-push", { body: payload });
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (data && "error" in data && data.error) {
+    throw new Error(data.error);
+  }
+  return data;
+}
+
 export async function upsertPushSubscription(
   payload: TablesInsert<"push_subscriptions">,
   client: BonAppetitClient = getSupabaseClient(),
