@@ -257,7 +257,7 @@ export function OrderView() {
                 {dictionary.order.emptyMenu}
               </p>
             ) : (
-              <div className="flex min-h-0 flex-1 flex-col gap-2">
+              <div className="flex-1 flex min-h-0 flex-col gap-2 justify-between">
                 {grouped.map((group) => {
                   const dishRow = group.rows.find((row) => row.id === selected[group.mealType]) ?? group.rows[0];
                   const dish = dishFromRelation(dishRow?.dishes);
@@ -293,7 +293,7 @@ export function OrderView() {
                         </h2>
                       </div>
 
-                      <div className="flex min-h-0 flex-1 flex-col justify-center pl-20">
+                      <div className="flex min-h-0 flex-1 flex-col justify-center pl-[20%]">
                         {dish ? (
                           <>
                             <p className="text-sm font-medium leading-tight">{dish.title}</p>
