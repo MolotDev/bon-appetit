@@ -224,7 +224,7 @@ export function OrderView() {
                 </Label>
                 <DatePicker
                   id="order-date"
-                  className="mt-1 h-9"
+                  className="h-9"
                   min={todayKyivIsoDate()}
                   value={targetDate}
                   onChange={(next) => setTargetDate(next || defaultOrderTargetDate())}
