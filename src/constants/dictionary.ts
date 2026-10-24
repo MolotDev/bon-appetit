@@ -15,6 +15,9 @@ export const dictionary = {
     delete: "Видалити",
     date: "Дата",
     required: "Це поле обов'язкове",
+    prevMonth: "Попередній місяць",
+    nextMonth: "Наступний місяць",
+    weekdays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"],
   },
   states: {
     errorTitle: "Сталася помилка",

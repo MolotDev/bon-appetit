@@ -4,7 +4,7 @@ import { DeadlineBanner } from "@/components/shared/DeadlineBanner";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ScreenState } from "@/components/ScreenState";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { ViewportSelect } from "@/components/ui/viewport-select";
 import { dictionary } from "@/constants/dictionary";
@@ -222,13 +222,12 @@ export function OrderView() {
                 <Label htmlFor="order-date" className="text-xs">
                   {dictionary.common.date}
                 </Label>
-                <Input
+                <DatePicker
                   id="order-date"
-                  type="date"
-                  className="h-9"
+                  className="mt-1 h-9"
                   min={todayKyivIsoDate()}
                   value={targetDate}
-                  onChange={(event) => setTargetDate(event.target.value || defaultOrderTargetDate())}
+                  onChange={(next) => setTargetDate(next || defaultOrderTargetDate())}
                 />
               </div>
               <div className="min-w-0">

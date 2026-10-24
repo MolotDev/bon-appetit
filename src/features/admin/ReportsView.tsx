@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { DashboardPage } from "@/components/shared/DashboardPage";
 import { ScreenState } from "@/components/ScreenState";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ViewportSelect } from "@/components/ui/viewport-select";
 import { dictionary } from "@/constants/dictionary";
 import { OpsCheckPanel } from "@/features/admin/OpsCheckPanel";
@@ -88,13 +88,12 @@ export function ReportsView() {
       title={dictionary.screens.adminReports}
       toolbar={
         <>
-          <Input
+          <DatePicker
             id="report-date"
-            type="date"
             className="h-10 w-44 shrink-0"
             value={date}
-            onChange={(event) => setDate(event.target.value || defaultOrderTargetDate())}
-            aria-label={dictionary.common.date}
+            ariaLabel={dictionary.common.date}
+            onChange={(next) => setDate(next || defaultOrderTargetDate())}
           />
           <ViewportSelect
             className="h-10 w-44 shrink-0"

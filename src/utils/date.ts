@@ -98,3 +98,35 @@ export function formatDateUk(isoDate: string): string {
     year: "numeric",
   }).format(date);
 }
+
+export function formatDateShortUk(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1));
+  return new Intl.DateTimeFormat("uk-UA", {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+export function formatMonthYearUk(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1));
+  return new Intl.DateTimeFormat("uk-UA", {
+    timeZone: "UTC",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+export function addMonthsIso(isoDate: string, months: number): string {
+  const [year, month] = isoDate.split("-").map(Number);
+  const utc = Date.UTC(year ?? 1970, (month ?? 1) - 1 + months, 1);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(utc));
+}

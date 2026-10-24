@@ -4,8 +4,8 @@ import { DeadlineBanner } from "@/components/shared/DeadlineBanner";
 import { DashboardPage } from "@/components/shared/DashboardPage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Dialog } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { dictionary } from "@/constants/dictionary";
 import {
@@ -230,19 +230,17 @@ export function DailyMenuBuilder() {
         title={dictionary.screens.adminMenu}
         toolbar={
           <>
-            <Input
-              type="date"
+            <DatePicker
               className="h-10 w-40 shrink-0"
               value={from}
-              onChange={(event) => setFrom(event.target.value || defaultRange.from)}
-              aria-label={dictionary.menu.dateFrom}
+              ariaLabel={dictionary.menu.dateFrom}
+              onChange={(next) => setFrom(next || defaultRange.from)}
             />
-            <Input
-              type="date"
+            <DatePicker
               className="h-10 w-40 shrink-0"
               value={to}
-              onChange={(event) => setTo(event.target.value || defaultRange.to)}
-              aria-label={dictionary.menu.dateTo}
+              ariaLabel={dictionary.menu.dateTo}
+              onChange={(next) => setTo(next || defaultRange.to)}
             />
             <Button type="button" variant="outline" className="h-10 shrink-0" onClick={resetRange}>
               {dictionary.menu.fiveDays}
@@ -341,13 +339,12 @@ export function DailyMenuBuilder() {
           <form className="flex flex-col gap-4" onSubmit={(event) => void onSave(event)}>
             <div className="flex flex-col gap-2">
               <Label htmlFor="menu-editor-date">{dictionary.common.date}</Label>
-              <Input
+              <DatePicker
                 id="menu-editor-date"
-                type="date"
                 className="h-10"
                 value={editorDate}
                 disabled={dateLocked}
-                onChange={(event) => onCreateDateChange(event.target.value)}
+                onChange={onCreateDateChange}
               />
             </div>
             <p className="text-sm text-muted-foreground">{dictionary.menu.deadlineWarning}</p>
