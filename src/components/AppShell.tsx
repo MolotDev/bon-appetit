@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import { OfflineBanner } from "@/components/shared/OfflineBanner";
 import { PushOptInBanner } from "@/components/shared/PushOptInBanner";
 import { Button } from "@/components/ui/button";
 import { dictionary } from "@/constants/dictionary";
@@ -81,6 +82,7 @@ export function AppShell({
           </nav>
           <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/40 p-4 print:overflow-visible">
             {showPushBanner && profile ? <PushOptInBanner userId={profile.id} /> : null}
+            <OfflineBanner />
             <Outlet />
           </main>
         </div>
@@ -118,6 +120,7 @@ export function AppShell({
         )}
       >
         {showPushBanner && profile ? <PushOptInBanner userId={profile.id} /> : null}
+        <OfflineBanner />
         <Outlet />
       </div>
       {navPosition === "bottom" ? nav : null}

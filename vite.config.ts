@@ -12,6 +12,10 @@ export default defineConfig({
       filename: "sw.ts",
       registerType: "autoUpdate",
       injectRegister: false,
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
+        navigateFallback: "/index.html",
+      },
       includeAssets: ["icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
         name: "Bon Appetit",
@@ -46,7 +50,7 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,webmanifest}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
       },
       devOptions: {
         enabled: true,

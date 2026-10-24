@@ -5,8 +5,10 @@ import { ScreenState } from "@/components/ScreenState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { dictionary } from "@/constants/dictionary";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { cancelOwnOrder, listLocations, listOwnOrders } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
+import { useOrderCacheStore } from "@/stores/orderCacheStore";
 import {
   MEAL_TYPES,
   dishFromRelation,
@@ -17,6 +19,7 @@ import { formatDateUk, isUserOrderDeadlineOpen } from "@/utils/date";
 
 export function HistoryView() {
   const profile = useAuthStore((state) => state.profile);
+  const online = useOnlineStatus();
   const [status, setStatus] = useState<"loading" | "empty" | "error" | "success">("loading");
   const [errorMessage, setErrorMessage] = useState<string>(dictionary.states.errorGeneric);
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
@@ -27,13 +30,31 @@ export function HistoryView() {
     if (!profile) {
       return;
     }
-    setStatus("loading");
+    const cache = useOrderCacheStore.getState();
+    const cachedForUser = cache.userId === profile.id;
+    const cachedOrders = cachedForUser ? cache.history : [];
+    const cachedLocations = cachedForUser ? cache.locations : [];
+    const hasCache = cachedForUser && (cachedOrders.length > 0 || cachedLocations.length > 0);
+
+    if (hasCache) {
+      setOrders(cachedOrders);
+      setLocations(cachedLocations);
+      setStatus(cachedOrders.length === 0 ? "empty" : "success");
+    } else {
+      setStatus("loading");
+    }
+
     try {
       const [rows, locationRows] = await Promise.all([listOwnOrders(profile.id), listLocations()]);
       setOrders(rows);
       setLocations(locationRows);
+      cache.cacheLocations(profile.id, locationRows);
+      cache.cacheHistory(profile.id, rows);
       setStatus(rows.length === 0 ? "empty" : "success");
     } catch (error) {
+      if (hasCache) {
+        return;
+      }
       setErrorMessage(error instanceof Error ? error.message : dictionary.states.errorGeneric);
       setStatus("error");
     }
@@ -58,6 +79,10 @@ export function HistoryView() {
   }
 
   async function onCancel(order: OrderWithItems) {
+    if (!online) {
+      toast.error(dictionary.order.offlineBlocked);
+      return;
+    }
     if (!canCancel(order)) {
       toast.error(dictionary.order.deadlineClosed);
       return;
@@ -118,7 +143,8 @@ export function HistoryView() {
                     type="button"
                     variant="outline"
                     className="h-11 w-full"
-                    disabled={cancellingId === order.id}
+                    disabled={cancellingId === order.id || !online}
+                    title={!online ? dictionary.order.offlineBlocked : undefined}
                     onClick={() => void onCancel(order)}
                   >
                     {dictionary.order.cancelOrder}

@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { DeadlineBanner } from "@/components/shared/DeadlineBanner";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { ScreenState } from "@/components/ScreenState";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -20,6 +21,7 @@ import {
   updateOrder,
 } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
+import { useOrderCacheStore } from "@/stores/orderCacheStore";
 import {
   MEAL_TYPES,
   dishFromRelation,
@@ -62,6 +64,7 @@ function MealChoiceRadio({
 
 export function OrderView() {
   const profile = useAuthStore((state) => state.profile);
+  const online = useOnlineStatus();
   const [targetDate, setTargetDate] = useState(defaultOrderTargetDate);
   const [status, setStatus] = useState<"loading" | "empty" | "error" | "success">("loading");
   const [errorMessage, setErrorMessage] = useState<string>(dictionary.states.errorGeneric);
@@ -73,56 +76,96 @@ export function OrderView() {
   const [deadlineOpen, setDeadlineOpen] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  function applySnapshot(
+    date: string,
+    locationRows: Location[],
+    typedMenu: MenuRow[],
+    existing: OrderWithItems | null,
+    allowed: boolean,
+  ) {
+    setLocations(locationRows);
+    setMenu(typedMenu);
+    setDeadlineOpen(allowed && isUserOrderDeadlineOpen(date));
+    setOrder(existing);
+
+    const defaultLocation =
+      existing?.target_location_id ??
+      profile?.default_location_id ??
+      locationRows[0]?.id ??
+      "";
+    setLocationId(defaultLocation);
+
+    const nextSelected: Partial<Record<MealType, string>> = {};
+    const existingItems = existing?.order_items ?? [];
+    if (existingItems.length > 0) {
+      for (const item of existingItems) {
+        const row = typedMenu.find((entry) => entry.id === item.daily_menu_id);
+        if (row) {
+          nextSelected[row.meal_type] = row.id;
+        }
+      }
+    } else {
+      for (const mealType of MEAL_TYPES) {
+        const first = typedMenu.find((row) => row.meal_type === mealType);
+        if (first) {
+          nextSelected[mealType] = first.id;
+        }
+      }
+    }
+    setSelected(nextSelected);
+
+    if (locationRows.length === 0) {
+      setStatus("empty");
+      return;
+    }
+    setStatus("success");
+  }
+
   async function load(date: string) {
     if (!profile) {
       return;
     }
-    setStatus("loading");
+    const cache = useOrderCacheStore.getState();
+    const cachedForUser = cache.userId === profile.id;
+    const cachedMenu = cachedForUser ? cache.menusByDate[date] : undefined;
+    const cachedLocations = cachedForUser ? cache.locations : [];
+    const hasCachedOrder = cachedForUser && Object.prototype.hasOwnProperty.call(cache.ordersByDate, date);
+    const cachedOrder = hasCachedOrder ? (cache.ordersByDate[date] ?? null) : null;
+    const hasCache = Boolean(cachedMenu) || cachedLocations.length > 0 || hasCachedOrder;
+
+    if (hasCache) {
+      applySnapshot(
+        date,
+        cachedLocations,
+        cachedMenu ?? [],
+        cachedOrder,
+        isUserOrderDeadlineOpen(date),
+      );
+    } else {
+      setStatus("loading");
+    }
+
     try {
-      const [locationRows, menuRows, existing, allowed] = await Promise.all([
+      const [locationRows, menuRows, existing] = await Promise.all([
         listLocations(),
         getDailyMenu(date),
         getOwnOrderForDate(profile.id, date),
-        checkUserOrderDeadline(date),
       ]);
       const typedMenu = menuRows as MenuRow[];
-      setLocations(locationRows);
-      setMenu(typedMenu);
-      setDeadlineOpen(allowed && isUserOrderDeadlineOpen(date));
-      setOrder(existing);
-
-      const defaultLocation =
-        existing?.target_location_id ??
-        profile.default_location_id ??
-        locationRows[0]?.id ??
-        "";
-      setLocationId(defaultLocation);
-
-      const nextSelected: Partial<Record<MealType, string>> = {};
-      const existingItems = existing?.order_items ?? [];
-      if (existingItems.length > 0) {
-        for (const item of existingItems) {
-          const row = typedMenu.find((entry) => entry.id === item.daily_menu_id);
-          if (row) {
-            nextSelected[row.meal_type] = row.id;
-          }
-        }
-      } else {
-        for (const mealType of MEAL_TYPES) {
-          const first = typedMenu.find((row) => row.meal_type === mealType);
-          if (first) {
-            nextSelected[mealType] = first.id;
-          }
-        }
+      let allowed = isUserOrderDeadlineOpen(date);
+      try {
+        allowed = (await checkUserOrderDeadline(date)) && allowed;
+      } catch {
+        allowed = isUserOrderDeadlineOpen(date);
       }
-      setSelected(nextSelected);
-
-      if (locationRows.length === 0) {
-        setStatus("empty");
+      applySnapshot(date, locationRows, typedMenu, existing, allowed);
+      cache.cacheLocations(profile.id, locationRows);
+      cache.cacheMenu(profile.id, date, typedMenu);
+      cache.cacheOrder(profile.id, date, existing);
+    } catch (error) {
+      if (hasCache) {
         return;
       }
-      setStatus("success");
-    } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : dictionary.states.errorGeneric);
       setStatus("error");
     }
@@ -156,6 +199,10 @@ export function OrderView() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!online) {
+      toast.error(dictionary.order.offlineBlocked);
+      return;
+    }
     if (!profile || !canEdit) {
       toast.error(dictionary.order.deadlineClosed);
       return;
@@ -202,6 +249,7 @@ export function OrderView() {
       await replaceOrderItems(orderId, dailyMenuIds);
       const refreshed = await getOwnOrderForDate(profile.id, targetDate);
       setOrder(refreshed);
+      useOrderCacheStore.getState().cacheOrder(profile.id, targetDate, refreshed);
       toast.success(dictionary.order.saved);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : dictionary.states.errorGeneric);
@@ -211,6 +259,10 @@ export function OrderView() {
   }
 
   async function onCancelOrder() {
+    if (!online) {
+      toast.error(dictionary.order.offlineBlocked);
+      return;
+    }
     if (!profile || !order || !canConfirmReceipt) {
       return;
     }
@@ -222,6 +274,7 @@ export function OrderView() {
       await cancelOwnOrder(order.id);
       const refreshed = await getOwnOrderForDate(profile.id, targetDate);
       setOrder(refreshed);
+      useOrderCacheStore.getState().cacheOrder(profile.id, targetDate, refreshed);
       toast.success(dictionary.order.cancelled);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : dictionary.states.errorGeneric);
@@ -231,6 +284,10 @@ export function OrderView() {
   }
 
   async function onConfirmReceived() {
+    if (!online) {
+      toast.error(dictionary.order.offlineBlocked);
+      return;
+    }
     if (!profile || !order || !canConfirmReceipt) {
       return;
     }
@@ -239,6 +296,7 @@ export function OrderView() {
       await confirmOrderReceived(order.id);
       const refreshed = await getOwnOrderForDate(profile.id, targetDate);
       setOrder(refreshed);
+      useOrderCacheStore.getState().cacheOrder(profile.id, targetDate, refreshed);
       toast.success(dictionary.order.received);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : dictionary.states.errorGeneric);
@@ -377,7 +435,8 @@ export function OrderView() {
                 type="button"
                 variant="ghost"
                 className="h-11 flex-1"
-                disabled={submitting}
+                disabled={submitting || !online}
+                title={!online ? dictionary.order.offlineBlocked : undefined}
                 onClick={() => void onCancelOrder()}
               >
                 {dictionary.order.cancelOrder}
@@ -385,14 +444,20 @@ export function OrderView() {
               <Button
                 type="button"
                 className="h-11 flex-1"
-                disabled={submitting}
+                disabled={submitting || !online}
+                title={!online ? dictionary.order.offlineBlocked : undefined}
                 onClick={() => void onConfirmReceived()}
               >
                 {dictionary.order.confirmReceived}
               </Button>
             </div>
           ) : cookingStarted || order?.status === "COMPLETED" ? null : (
-            <Button type="submit" className="h-11 shrink-0" disabled={!canEdit || submitting || menu.length === 0}>
+            <Button
+              type="submit"
+              className="h-11 shrink-0"
+              disabled={!canEdit || submitting || menu.length === 0 || !online}
+              title={!online ? dictionary.order.offlineBlocked : undefined}
+            >
               {dictionary.order.save}
             </Button>
           )}
