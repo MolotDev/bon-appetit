@@ -4,8 +4,8 @@ import { DashboardPage } from "@/components/shared/DashboardPage";
 import { ScreenState } from "@/components/ScreenState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ViewportSelect } from "@/components/ui/viewport-select";
 import { dictionary } from "@/constants/dictionary";
-import { filterControlClassName } from "@/constants/form";
 import { OpsCheckPanel } from "@/features/admin/OpsCheckPanel";
 import { getDeliveryReport, getKitchenReport } from "@/services/api";
 import type { DeliveryReportRow, KitchenReportRow, MealType } from "@/types";
@@ -96,15 +96,16 @@ export function ReportsView() {
             onChange={(event) => setDate(event.target.value || defaultOrderTargetDate())}
             aria-label={dictionary.common.date}
           />
-          <select
-            className={cn(filterControlClassName, "w-44")}
+          <ViewportSelect
+            className="h-10 w-44 shrink-0"
+            ariaLabel={dictionary.reports.heading}
             value={tab}
-            onChange={(event) => setTab(event.target.value as ReportTab)}
-            aria-label={dictionary.reports.heading}
-          >
-            <option value="kitchen">{dictionary.reports.kitchenTitle}</option>
-            <option value="supply">{dictionary.reports.deliveryTitle}</option>
-          </select>
+            onChange={(value) => setTab(value as ReportTab)}
+            options={[
+              { value: "kitchen", label: dictionary.reports.kitchenTitle },
+              { value: "supply", label: dictionary.reports.deliveryTitle },
+            ]}
+          />
           <Button type="button" variant="outline" className="h-10 shrink-0" onClick={() => window.print()}>
             {dictionary.reports.print}
           </Button>

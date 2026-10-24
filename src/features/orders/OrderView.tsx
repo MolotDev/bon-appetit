@@ -225,7 +225,7 @@ export function OrderView() {
                 <Input
                   id="order-date"
                   type="date"
-                  className="mt-1 h-9"
+                  className="h-9"
                   min={todayKyivIsoDate()}
                   value={targetDate}
                   onChange={(event) => setTargetDate(event.target.value || defaultOrderTargetDate())}
@@ -283,7 +283,7 @@ export function OrderView() {
                     <article
                       key={group.mealType}
                       className={cn(
-                        "flex min-h-0 flex-1 flex-col gap-2 rounded-lg border px-3 py-2",
+                        "flex min-h-0 flex-1 flex-col gap-1 rounded-lg border px-3 py-2",
                         ordered ? "border-primary bg-accent" : "bg-card",
                       )}
                     >

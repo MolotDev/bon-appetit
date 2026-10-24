@@ -59,27 +59,27 @@ export function AppShell({
 
   if (isSidebar) {
     return (
-      <div className="flex min-h-dvh w-full">
-        <aside className="hidden w-56 shrink-0 flex-col border-r bg-card print:hidden md:flex">
+      <div className="flex h-dvh w-full overflow-hidden print:h-auto print:overflow-visible">
+        <aside className="hidden h-full w-56 shrink-0 flex-col border-r bg-card print:hidden md:flex">
           <div className="border-b px-4 py-4">
             <p className="text-sm font-semibold">{dictionary.appName}</p>
             <p className="text-xs text-muted-foreground">{profile?.full_name}</p>
           </div>
-          <nav className="flex flex-1 flex-col gap-1 p-2">{navItems(true)}</nav>
+          <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2">{navItems(true)}</nav>
           <div className="border-t p-3">{logoutButton}</div>
         </aside>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between gap-3 border-b bg-card px-4 py-3 md:hidden print:hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="flex shrink-0 items-center justify-between gap-3 border-b bg-card px-4 py-3 md:hidden print:hidden">
             <div>
               <p className="text-sm font-semibold">{dictionary.appName}</p>
               <p className="text-xs text-muted-foreground">{profile?.full_name}</p>
             </div>
             {logoutButton}
           </header>
-          <nav className="flex gap-1 overflow-x-auto border-b bg-card px-2 py-2 print:hidden md:hidden">
+          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b bg-card px-2 py-2 print:hidden md:hidden">
             {navItems(false)}
           </nav>
-          <main className="flex flex-1 flex-col gap-3 bg-muted/40 p-4">
+          <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/40 p-4 print:overflow-visible">
             {showPushBanner && profile ? <PushOptInBanner userId={profile.id} /> : null}
             <Outlet />
           </main>

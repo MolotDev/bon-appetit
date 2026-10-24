@@ -12,9 +12,10 @@ type ViewportSelectProps = {
   id?: string;
   value: string;
   options: ViewportSelectOption[];
-  placeholder: string;
+  placeholder?: string;
   disabled?: boolean;
   className?: string;
+  ariaLabel?: string;
   onChange: (value: string) => void;
 };
 
@@ -46,6 +47,7 @@ export function ViewportSelect({
   placeholder,
   disabled = false,
   className,
+  ariaLabel,
   onChange,
 }: ViewportSelectProps) {
   const generatedId = useId();
@@ -105,8 +107,9 @@ export function ViewportSelect({
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label={ariaLabel}
         className={cn(
-          "mt-1 flex h-9 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-background px-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-9 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-background px-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
         onClick={() => setOpen((current) => !current)}
@@ -120,7 +123,7 @@ export function ViewportSelect({
               ref={menuRef}
               role="listbox"
               aria-labelledby={triggerId}
-              className="fixed z-50 overflow-y-auto rounded-md border bg-card py-1 shadow-lg"
+              className="fixed z-[70] overflow-y-auto rounded-md border bg-card py-1 shadow-lg"
               style={{
                 top: box.top,
                 left: box.left,

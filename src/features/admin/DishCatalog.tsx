@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ViewportSelect } from "@/components/ui/viewport-select";
 import { dictionary } from "@/constants/dictionary";
-import { filterControlClassName, selectClassName } from "@/constants/form";
 import { createDish, listDishes, updateDish } from "@/services/api";
 import { MEAL_TYPES, type Dish, type MealType } from "@/types";
 import { cn } from "@/utils/cn";
@@ -145,29 +145,30 @@ export function DishCatalog() {
               placeholder={dictionary.common.search}
               onChange={(event) => setQuery(event.target.value)}
             />
-            <select
-              className={cn(filterControlClassName, "w-40")}
+            <ViewportSelect
+              className="h-10 w-40 shrink-0"
+              ariaLabel={dictionary.menu.category}
               value={mealFilter}
-              onChange={(event) => setMealFilter(event.target.value as MealFilter)}
-              aria-label={dictionary.menu.category}
-            >
-              <option value="ALL">{dictionary.menu.allCategories}</option>
-              {MEAL_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {dictionary.mealType[type]}
-                </option>
-              ))}
-            </select>
-            <select
-              className={cn(filterControlClassName, "w-40")}
+              onChange={(value) => setMealFilter(value as MealFilter)}
+              options={[
+                { value: "ALL", label: dictionary.menu.allCategories },
+                ...MEAL_TYPES.map((type) => ({
+                  value: type,
+                  label: dictionary.mealType[type],
+                })),
+              ]}
+            />
+            <ViewportSelect
+              className="h-10 w-40 shrink-0"
+              ariaLabel={dictionary.menu.status}
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-              aria-label={dictionary.menu.status}
-            >
-              <option value="ALL">{dictionary.menu.allStatuses}</option>
-              <option value="ACTIVE">{dictionary.menu.statusActive}</option>
-              <option value="INACTIVE">{dictionary.menu.statusInactive}</option>
-            </select>
+              onChange={(value) => setStatusFilter(value as StatusFilter)}
+              options={[
+                { value: "ALL", label: dictionary.menu.allStatuses },
+                { value: "ACTIVE", label: dictionary.menu.statusActive },
+                { value: "INACTIVE", label: dictionary.menu.statusInactive },
+              ]}
+            />
             <Button type="button" className="ml-auto h-10 shrink-0" onClick={openCreate}>
               {dictionary.menu.addDish}
             </Button>
@@ -245,18 +246,16 @@ export function DishCatalog() {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="dish-category">{dictionary.menu.category}</Label>
-            <select
+            <ViewportSelect
               id="dish-category"
-              className={selectClassName}
+              className="h-10"
               value={mealType}
-              onChange={(event) => setMealType(event.target.value as MealType)}
-            >
-              {MEAL_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {dictionary.mealType[type]}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setMealType(value as MealType)}
+              options={MEAL_TYPES.map((type) => ({
+                value: type,
+                label: dictionary.mealType[type],
+              }))}
+            />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="dish-description">{dictionary.menu.description}</Label>

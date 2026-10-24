@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ViewportSelect } from "@/components/ui/viewport-select";
 import { dictionary } from "@/constants/dictionary";
-import { filterControlClassName, selectClassName } from "@/constants/form";
 import {
   invokeAdminUsers,
   listLocations,
@@ -305,16 +305,17 @@ export function UsersPanelView() {
               placeholder={dictionary.users.filter}
               onChange={(event) => setQuery(event.target.value)}
             />
-            <select
-              className={cn(filterControlClassName, "w-40")}
+            <ViewportSelect
+              className="h-10 w-40 shrink-0"
+              ariaLabel={dictionary.users.role}
               value={roleFilter}
-              onChange={(event) => setRoleFilter(event.target.value as "ALL" | UserRole)}
-              aria-label={dictionary.users.role}
-            >
-              <option value="ALL">{dictionary.users.allRoles}</option>
-              <option value="USER">{dictionary.role.USER}</option>
-              <option value="ADMIN">{dictionary.role.ADMIN}</option>
-            </select>
+              onChange={(value) => setRoleFilter(value as "ALL" | UserRole)}
+              options={[
+                { value: "ALL", label: dictionary.users.allRoles },
+                { value: "USER", label: dictionary.role.USER },
+                { value: "ADMIN", label: dictionary.role.ADMIN },
+              ]}
+            />
             <Button type="button" className="ml-auto h-10 shrink-0" onClick={openCreate}>
               {dictionary.common.create}
             </Button>
@@ -464,35 +465,35 @@ export function UsersPanelView() {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="user-role">{dictionary.users.role}</Label>
-              <select
+              <ViewportSelect
                 id="user-role"
-                className={selectClassName}
+                className="h-10"
                 value={form.role}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, role: event.target.value as UserRole }))
+                onChange={(value) =>
+                  setForm((current) => ({ ...current, role: value as UserRole }))
                 }
-              >
-                <option value="USER">{dictionary.role.USER}</option>
-                <option value="ADMIN">{dictionary.role.ADMIN}</option>
-              </select>
+                options={[
+                  { value: "USER", label: dictionary.role.USER },
+                  { value: "ADMIN", label: dictionary.role.ADMIN },
+                ]}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="user-location">{dictionary.users.location}</Label>
-              <select
+              <ViewportSelect
                 id="user-location"
-                className={selectClassName}
+                className="h-10"
                 value={form.locationId}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, locationId: event.target.value }))
-                }
-              >
-                <option value="">{dictionary.users.locationNone}</option>
-                {locations.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.name}
-                  </option>
-                ))}
-              </select>
+                placeholder={dictionary.users.locationNone}
+                onChange={(value) => setForm((current) => ({ ...current, locationId: value }))}
+                options={[
+                  { value: "", label: dictionary.users.locationNone },
+                  ...locations.map((location) => ({
+                    value: location.id,
+                    label: location.name,
+                  })),
+                ]}
+              />
             </div>
             {modal === "create" ? (
               <p className="text-sm text-muted-foreground">{dictionary.users.generateAfterCreate}</p>
