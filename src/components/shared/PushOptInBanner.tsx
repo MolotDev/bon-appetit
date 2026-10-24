@@ -55,13 +55,13 @@ export function PushOptInBanner({ userId }: PushOptInBannerProps) {
   }
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-accent px-3 py-3">
-      <p className="flex-1 text-sm leading-snug text-accent-foreground">{dictionary.push.banner}</p>
-      <div className="flex shrink-0 flex-col gap-1">
-        <Button type="button" size="sm" disabled={busy} onClick={() => void onEnable()}>
+    <div className="flex shrink-0 items-center gap-2 rounded-lg border border-primary/20 bg-accent px-3 py-2">
+      <p className="min-w-0 flex-1 text-xs leading-snug text-accent-foreground">{dictionary.push.banner}</p>
+      <div className="flex shrink-0 items-center gap-1">
+        <Button type="button" size="sm" className="h-8" disabled={busy} onClick={() => void onEnable()}>
           {dictionary.push.enable}
         </Button>
-        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={onLater}>
+        <Button type="button" size="sm" variant="ghost" className="h-8" disabled={busy} onClick={onLater}>
           {dictionary.push.later}
         </Button>
       </div>

@@ -4,9 +4,9 @@ import { DeadlineBanner } from "@/components/shared/DeadlineBanner";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ScreenState } from "@/components/ScreenState";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ViewportSelect } from "@/components/ui/viewport-select";
 import { dictionary } from "@/constants/dictionary";
 import {
   checkUserOrderDeadline,
@@ -26,10 +26,37 @@ import {
   type MenuRow,
   type OrderWithItems,
 } from "@/types";
+import { cn } from "@/utils/cn";
 import { defaultOrderTargetDate, isUserOrderDeadlineOpen, todayKyivIsoDate } from "@/utils/date";
 
-const selectClassName =
-  "h-11 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50";
+function MealChoiceRadio({
+  checked,
+  disabled,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  label: string;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label className="flex min-h-10 items-center gap-2 text-sm">
+      <span className="relative inline-flex h-5 w-5 shrink-0 items-center justify-center">
+        <input
+          type="checkbox"
+          className="peer sr-only"
+          checked={checked}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        <span className="pointer-events-none absolute inset-0 rounded-full border-2 border-primary peer-disabled:opacity-40" />
+        <span className="pointer-events-none absolute h-3 w-3 rounded-full bg-primary opacity-0 peer-checked:opacity-100 peer-disabled:opacity-40" />
+      </span>
+      {label}
+    </label>
+  );
+}
 
 export function OrderView() {
   const profile = useAuthStore((state) => state.profile);
@@ -70,10 +97,20 @@ export function OrderView() {
       setLocationId(defaultLocation);
 
       const nextSelected: Partial<Record<MealType, string>> = {};
-      for (const item of existing?.order_items ?? []) {
-        const row = typedMenu.find((entry) => entry.id === item.daily_menu_id);
-        if (row) {
-          nextSelected[row.meal_type] = row.id;
+      const existingItems = existing?.order_items ?? [];
+      if (existingItems.length > 0) {
+        for (const item of existingItems) {
+          const row = typedMenu.find((entry) => entry.id === item.daily_menu_id);
+          if (row) {
+            nextSelected[row.meal_type] = row.id;
+          }
+        }
+      } else {
+        for (const mealType of MEAL_TYPES) {
+          const first = typedMenu.find((row) => row.meal_type === mealType);
+          if (first) {
+            nextSelected[mealType] = first.id;
+          }
         }
       }
       setSelected(nextSelected);
@@ -161,22 +198,10 @@ export function OrderView() {
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <h1 className="text-xl font-semibold">{dictionary.screens.order}</h1>
+    <section className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="flex shrink-0 items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold">{dictionary.screens.order}</h1>
         {order ? <StatusBadge status={order.status} /> : null}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="order-date">{dictionary.common.date}</Label>
-        <Input
-          id="order-date"
-          type="date"
-          className="h-11"
-          min={todayKyivIsoDate()}
-          value={targetDate}
-          onChange={(event) => setTargetDate(event.target.value || defaultOrderTargetDate())}
-        />
       </div>
 
       {!deadlineOpen ? <DeadlineBanner message={dictionary.order.deadlineClosed} /> : null}
@@ -187,23 +212,44 @@ export function OrderView() {
         errorMessage={errorMessage}
         onRetry={() => void load(targetDate)}
       >
-        <form className="flex flex-col gap-5" onSubmit={onSubmit}>
-          <fieldset disabled={!canEdit || submitting} className="flex flex-col gap-5 disabled:opacity-100">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="location">{dictionary.order.location}</Label>
-              <select
-                id="location"
-                className={selectClassName}
-                value={locationId}
-                onChange={(event) => setLocationId(event.target.value)}
-              >
-                <option value="">{dictionary.order.selectLocation}</option>
-                {locations.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.name}
-                  </option>
-                ))}
-              </select>
+        <form className="flex min-h-0 flex-1 flex-col gap-2" onSubmit={onSubmit}>
+          <fieldset
+            disabled={!canEdit || submitting}
+            className="flex min-h-0 flex-1 flex-col gap-2 disabled:opacity-100"
+          >
+            <div className="grid shrink-0 grid-cols-2 gap-2">
+              <div className="min-w-0">
+                <Label htmlFor="order-date" className="text-xs">
+                  {dictionary.common.date}
+                </Label>
+                <Input
+                  id="order-date"
+                  type="date"
+                  className="mt-1 h-9"
+                  min={todayKyivIsoDate()}
+                  value={targetDate}
+                  onChange={(event) => setTargetDate(event.target.value || defaultOrderTargetDate())}
+                />
+              </div>
+              <div className="min-w-0">
+                <Label htmlFor="location" className="text-xs">
+                  {dictionary.order.location}
+                </Label>
+                <ViewportSelect
+                  id="location"
+                  value={locationId}
+                  placeholder={dictionary.order.selectLocation}
+                  disabled={!canEdit || submitting}
+                  onChange={setLocationId}
+                  options={[
+                    { value: "", label: dictionary.order.selectLocation },
+                    ...locations.map((location) => ({
+                      value: location.id,
+                      label: location.name,
+                    })),
+                  ]}
+                />
+              </div>
             </div>
 
             {menu.length === 0 ? (
@@ -211,59 +257,71 @@ export function OrderView() {
                 {dictionary.order.emptyMenu}
               </p>
             ) : (
-              grouped.map((group) => (
-                <Card key={group.mealType}>
-                  <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-base">{dictionary.mealType[group.mealType]}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-3 p-4 pt-2">
-                    <label className="flex min-h-11 items-center gap-3 text-sm">
-                      <input
-                        type="radio"
-                        name={group.mealType}
-                        className="h-4 w-4 accent-primary"
-                        checked={!selected[group.mealType]}
-                        onChange={() =>
-                          setSelected((current) => {
-                            const next = { ...current };
-                            delete next[group.mealType];
-                            return next;
-                          })
-                        }
-                      />
-                      {dictionary.order.none}
-                    </label>
-                    {group.rows.map((row) => {
-                      const dish = dishFromRelation(row.dishes);
-                      if (!dish) {
-                        return null;
+              <div className="flex min-h-0 flex-1 flex-col gap-2">
+                {grouped.map((group) => {
+                  const dishRow = group.rows.find((row) => row.id === selected[group.mealType]) ?? group.rows[0];
+                  const dish = dishFromRelation(dishRow?.dishes);
+                  const ordered = Boolean(selected[group.mealType]);
+                  const canOrder = Boolean(dishRow);
+
+                  function setOrdered(nextOrdered: boolean) {
+                    if (!dishRow) {
+                      return;
+                    }
+                    setSelected((current) => {
+                      const next = { ...current };
+                      if (nextOrdered) {
+                        next[group.mealType] = dishRow.id;
+                      } else {
+                        delete next[group.mealType];
                       }
-                      return (
-                        <label key={row.id} className="flex min-h-11 items-start gap-3 text-sm">
-                          <input
-                            type="radio"
-                            name={group.mealType}
-                            className="mt-1 h-4 w-4 accent-primary"
-                            checked={selected[group.mealType] === row.id}
-                            onChange={() =>
-                              setSelected((current) => ({ ...current, [group.mealType]: row.id }))
-                            }
-                          />
-                          <span>
-                            <span className="font-medium">{dish.title}</span>
+                      return next;
+                    });
+                  }
+
+                  return (
+                    <article
+                      key={group.mealType}
+                      className={cn(
+                        "flex min-h-0 flex-1 flex-col rounded-lg border px-3 py-2",
+                        ordered ? "border-primary bg-accent" : "bg-card",
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <h2 className="min-w-0 flex-1 text-sm font-semibold">
+                          {dictionary.mealType[group.mealType]}
+                        </h2>
+                      </div>
+
+                      <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
+                        {dish ? (
+                          <>
+                            <p className="text-sm font-medium leading-tight">{dish.title}</p>
                             {dish.description ? (
-                              <span className="block text-muted-foreground">{dish.description}</span>
+                              <p className="line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                                {dish.description}
+                              </p>
                             ) : null}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </CardContent>
-                </Card>
-              ))
+                          </>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">{dictionary.order.emptyMenu}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-end gap-2">
+                        <MealChoiceRadio
+                          checked={canOrder && ordered}
+                          disabled={!canOrder}
+                          label={dictionary.order.orderDish}
+                          onChange={setOrdered}
+                        />
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             )}
           </fieldset>
-          <Button type="submit" className="h-12" disabled={!canEdit || submitting || menu.length === 0}>
+          <Button type="submit" className="h-10 shrink-0" disabled={!canEdit || submitting || menu.length === 0}>
             {dictionary.order.save}
           </Button>
         </form>

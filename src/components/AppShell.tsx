@@ -113,8 +113,8 @@ export function AppShell({
       {navPosition === "top" ? nav : null}
       <div
         className={cn(
-          "flex flex-1 flex-col gap-3 p-4",
-          navPosition === "bottom" && "pb-[calc(5.5rem+env(safe-area-inset-bottom))]",
+          "flex min-h-0 flex-1 flex-col gap-2 p-3",
+          navPosition === "bottom" && "pb-[calc(4.75rem+env(safe-area-inset-bottom))]",
         )}
       >
         {showPushBanner && profile ? <PushOptInBanner userId={profile.id} /> : null}
