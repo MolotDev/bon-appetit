@@ -4,6 +4,8 @@ import { cn } from "@/utils/cn";
 
 const badgeClass: Record<OrderStatus, string> = {
   PENDING: "bg-amber-100 text-amber-950",
+  PENDING_SYNC: "bg-violet-100 text-violet-950",
+  SYNC_FAILED_DEADLINE: "bg-red-100 text-red-950",
   COOKING: "bg-orange-100 text-orange-950",
   IN_DELIVERY: "bg-sky-100 text-sky-950",
   COMPLETED: "bg-emerald-100 text-emerald-950",

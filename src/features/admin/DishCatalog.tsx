@@ -9,19 +9,24 @@ import { Label } from "@/components/ui/label";
 import { ViewportSelect } from "@/components/ui/viewport-select";
 import { dictionary } from "@/constants/dictionary";
 import { createDish, listDishes, updateDish } from "@/services/api";
+import {
+  useAdminFiltersStore,
+  type DishMealFilter,
+  type DishStatusFilter,
+} from "@/stores/adminFiltersStore";
 import { MEAL_TYPES, type Dish, type MealType } from "@/types";
 import { cn } from "@/utils/cn";
-
-type StatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
-type MealFilter = "ALL" | MealType;
 
 export function DishCatalog() {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [status, setStatus] = useState<"loading" | "empty" | "error" | "success">("loading");
   const [errorMessage, setErrorMessage] = useState<string>(dictionary.states.errorGeneric);
-  const [query, setQuery] = useState("");
-  const [mealFilter, setMealFilter] = useState<MealFilter>("ALL");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const query = useAdminFiltersStore((state) => state.dishesQuery);
+  const setQuery = useAdminFiltersStore((state) => state.setDishesQuery);
+  const mealFilter = useAdminFiltersStore((state) => state.dishesMeal);
+  const setMealFilter = useAdminFiltersStore((state) => state.setDishesMeal);
+  const statusFilter = useAdminFiltersStore((state) => state.dishesStatus);
+  const setStatusFilter = useAdminFiltersStore((state) => state.setDishesStatus);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -149,7 +154,7 @@ export function DishCatalog() {
               className="h-10 w-40 shrink-0"
               ariaLabel={dictionary.menu.category}
               value={mealFilter}
-              onChange={(value) => setMealFilter(value as MealFilter)}
+              onChange={(value) => setMealFilter(value as DishMealFilter)}
               options={[
                 { value: "ALL", label: dictionary.menu.allCategories },
                 ...MEAL_TYPES.map((type) => ({
@@ -162,7 +167,7 @@ export function DishCatalog() {
               className="h-10 w-40 shrink-0"
               ariaLabel={dictionary.menu.status}
               value={statusFilter}
-              onChange={(value) => setStatusFilter(value as StatusFilter)}
+              onChange={(value) => setStatusFilter(value as DishStatusFilter)}
               options={[
                 { value: "ALL", label: dictionary.menu.allStatuses },
                 { value: "ACTIVE", label: dictionary.menu.statusActive },

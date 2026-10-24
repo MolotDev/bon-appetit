@@ -14,6 +14,7 @@ import {
   listProfiles,
   updateProfile,
 } from "@/services/api";
+import { useAdminFiltersStore, type UserRoleFilter } from "@/stores/adminFiltersStore";
 import { useAuthStore } from "@/stores/authStore";
 import type { Location, Profile, UserRole } from "@/types";
 import { cn } from "@/utils/cn";
@@ -52,8 +53,10 @@ export function UsersPanelView() {
   const [errorMessage, setErrorMessage] = useState<string>(dictionary.states.errorGeneric);
   const [users, setUsers] = useState<Profile[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [query, setQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"ALL" | UserRole>("ALL");
+  const query = useAdminFiltersStore((state) => state.usersQuery);
+  const setQuery = useAdminFiltersStore((state) => state.setUsersQuery);
+  const roleFilter = useAdminFiltersStore((state) => state.usersRole);
+  const setRoleFilter = useAdminFiltersStore((state) => state.setUsersRole);
   const [form, setForm] = useState(emptyForm);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [modal, setModal] = useState<ModalMode>("closed");
@@ -300,7 +303,7 @@ export function UsersPanelView() {
               className="h-10 w-40 shrink-0"
               ariaLabel={dictionary.users.role}
               value={roleFilter}
-              onChange={(value) => setRoleFilter(value as "ALL" | UserRole)}
+              onChange={(value) => setRoleFilter(value as UserRoleFilter)}
               options={[
                 { value: "ALL", label: dictionary.users.allRoles },
                 { value: "USER", label: dictionary.role.USER },

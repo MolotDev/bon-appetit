@@ -16,6 +16,7 @@ import {
   insertDailyMenuRows,
   listDishes,
 } from "@/services/api";
+import { useAdminFiltersStore } from "@/stores/adminFiltersStore";
 import { MEAL_TYPES, dishFromRelation, type Dish, type MealType, type MenuRow } from "@/types";
 import { cn } from "@/utils/cn";
 import {
@@ -41,8 +42,9 @@ function groupRowsByDate(rows: MenuRow[]): Map<string, MenuRow[]> {
 export function DailyMenuBuilder() {
   const today = todayKyivIsoDate();
   const defaultRange = defaultMenuCatalogRange();
-  const [from, setFrom] = useState(defaultRange.from);
-  const [to, setTo] = useState(defaultRange.to);
+  const from = useAdminFiltersStore((state) => state.menuFrom);
+  const to = useAdminFiltersStore((state) => state.menuTo);
+  const setMenuRange = useAdminFiltersStore((state) => state.setMenuRange);
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [menusByDate, setMenusByDate] = useState<Map<string, MenuRow[]>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -94,8 +96,7 @@ export function DailyMenuBuilder() {
 
   function resetRange() {
     const range = defaultMenuCatalogRange();
-    setFrom(range.from);
-    setTo(range.to);
+    setMenuRange(range.from, range.to);
   }
 
   function applyEditorDate(date: string, rows: MenuRow[]) {
@@ -210,11 +211,8 @@ export function DailyMenuBuilder() {
       const nextFrom = editorDate < from ? editorDate : from;
       const nextTo = editorDate > to ? editorDate : to;
       closeEditor();
-      if (nextFrom !== from) {
-        setFrom(nextFrom);
-      }
-      if (nextTo !== to) {
-        setTo(nextTo);
+      if (nextFrom !== from || nextTo !== to) {
+        setMenuRange(nextFrom, nextTo);
       }
       await loadRange(nextFrom, nextTo);
     } catch (error) {
@@ -234,13 +232,13 @@ export function DailyMenuBuilder() {
               className="h-10 w-40 shrink-0"
               value={from}
               ariaLabel={dictionary.menu.dateFrom}
-              onChange={(next) => setFrom(next || defaultRange.from)}
+              onChange={(next) => setMenuRange(next || defaultRange.from, to)}
             />
             <DatePicker
               className="h-10 w-40 shrink-0"
               value={to}
               ariaLabel={dictionary.menu.dateTo}
-              onChange={(next) => setTo(next || defaultRange.to)}
+              onChange={(next) => setMenuRange(from, next || defaultRange.to)}
             />
             <Button type="button" variant="outline" className="h-10 shrink-0" onClick={resetRange}>
               {dictionary.menu.fiveDays}

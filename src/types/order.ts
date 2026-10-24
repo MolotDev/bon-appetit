@@ -1,4 +1,4 @@
-import type { MealType, Tables } from "./database";
+import type { MealType, OrderStatus, Tables } from "./database";
 
 type DailyMenu = Tables<"daily_menu">;
 type Dish = Tables<"dishes">;
@@ -11,7 +11,8 @@ export type OrderItemWithMenu = OrderItem & {
   daily_menu: (DailyMenu & { dishes: Dish | Dish[] | null }) | null;
 };
 
-export type OrderWithItems = Order & {
+export type OrderWithItems = Omit<Order, "status"> & {
+  status: OrderStatus;
   order_items: OrderItemWithMenu[] | null;
 };
 

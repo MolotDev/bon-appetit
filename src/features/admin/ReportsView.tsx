@@ -8,24 +8,28 @@ import { ViewportSelect } from "@/components/ui/viewport-select";
 import { dictionary } from "@/constants/dictionary";
 import { OpsCheckPanel } from "@/features/admin/OpsCheckPanel";
 import {
+  getDailyMenu,
   getDeliveryReport,
   getKitchenReport,
   listOrderStatusesForDate,
   startKitchenCooking,
 } from "@/services/api";
-import type { DeliveryReportRow, KitchenReportRow, MealType } from "@/types";
+import { useAdminFiltersStore, type ReportTab } from "@/stores/adminFiltersStore";
+import type { DeliveryReportRow, KitchenReportRow, MealType, MenuRow } from "@/types";
 import { cn } from "@/utils/cn";
 import { defaultOrderTargetDate, formatDateUk } from "@/utils/date";
+import { completeKitchenReport } from "@/utils/kitchenReport";
 import { buildMessengerSummary, exportReportPdf } from "@/utils/reportExport";
 
-type ReportTab = "kitchen" | "supply";
-
 export function ReportsView() {
-  const [date, setDate] = useState(defaultOrderTargetDate);
-  const [tab, setTab] = useState<ReportTab>("kitchen");
+  const date = useAdminFiltersStore((state) => state.reportsDate);
+  const setDate = useAdminFiltersStore((state) => state.setReportsDate);
+  const tab = useAdminFiltersStore((state) => state.reportsTab);
+  const setTab = useAdminFiltersStore((state) => state.setReportsTab);
   const [status, setStatus] = useState<"loading" | "empty" | "error" | "success">("loading");
   const [errorMessage, setErrorMessage] = useState<string>(dictionary.states.errorGeneric);
   const [kitchen, setKitchen] = useState<KitchenReportRow[]>([]);
+  const [menu, setMenu] = useState<MenuRow[]>([]);
   const [delivery, setDelivery] = useState<DeliveryReportRow[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [cookingStarted, setCookingStarted] = useState(false);
@@ -36,12 +40,14 @@ export function ReportsView() {
   async function loadReports(targetDate: string) {
     setStatus("loading");
     try {
-      const [kitchenRows, deliveryRows, orderStatuses] = await Promise.all([
+      const [kitchenRows, menuRows, deliveryRows, orderStatuses] = await Promise.all([
         getKitchenReport(targetDate),
+        getDailyMenu(targetDate),
         getDeliveryReport(targetDate),
         listOrderStatusesForDate(targetDate),
       ]);
       setKitchen(kitchenRows);
+      setMenu(menuRows as MenuRow[]);
       setDelivery(deliveryRows);
       setPendingCount(orderStatuses.filter((row) => row.status === "PENDING").length);
       setCookingStarted(
@@ -60,16 +66,7 @@ export function ReportsView() {
     void loadReports(date);
   }, [date]);
 
-  const hasKitchen = kitchen.length > 0;
-  const hasSupply = delivery.some(
-    (row) =>
-      row.breakfast_count +
-        row.lunch_first_count +
-        row.lunch_second_count +
-        row.dinner_count +
-        row.kits_count >
-      0,
-  );
+  const kitchenRows = completeKitchenReport(menu, kitchen);
 
   async function onStartCooking() {
     if (pendingCount === 0) {
@@ -98,7 +95,7 @@ export function ReportsView() {
   async function onCopy() {
     try {
       await navigator.clipboard.writeText(
-        buildMessengerSummary(date, kitchen, delivery),
+        buildMessengerSummary(date, kitchenRows, delivery),
       );
       toast.success(dictionary.reports.copied);
     } catch {
@@ -200,39 +197,35 @@ export function ReportsView() {
 
           <div className={cn(tab === "kitchen" || exporting ? "block" : "hidden", "print:block")}>
             <h2 className="mb-3 text-base font-semibold">{dictionary.reports.kitchenTitle}</h2>
-            {!hasKitchen ? (
-              <p className="text-sm text-muted-foreground">{dictionary.reports.kitchenEmpty}</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-muted/60">
-                    <tr>
-                      <th className="px-3 py-3 font-medium">{dictionary.reports.category}</th>
-                      <th className="px-3 py-3 font-medium">{dictionary.reports.dish}</th>
-                      <th className="px-3 py-3 font-medium">{dictionary.reports.orderedPortions}</th>
-                      <th className="px-3 py-3 font-medium">{dictionary.reports.cancelledPortions}</th>
-                      <th className="px-3 py-3 font-medium">{dictionary.reports.toIssue}</th>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-muted/60">
+                  <tr>
+                    <th className="px-3 py-3 font-medium">{dictionary.reports.category}</th>
+                    <th className="px-3 py-3 font-medium">{dictionary.reports.dish}</th>
+                    <th className="px-3 py-3 font-medium">{dictionary.reports.orderedPortions}</th>
+                    <th className="px-3 py-3 font-medium">{dictionary.reports.cancelledPortions}</th>
+                    <th className="px-3 py-3 font-medium">{dictionary.reports.toIssue}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {kitchenRows.map((row, index) => (
+                    <tr key={`${row.meal_type}-${row.dish_title}-${index}`} className="border-t">
+                      <td className="px-3 py-3">{dictionary.mealType[row.meal_type as MealType]}</td>
+                      <td className="px-3 py-3">{row.dish_title}</td>
+                      <td className="px-3 py-3">{row.portions}</td>
+                      <td className="px-3 py-3">{row.cancelled_portions}</td>
+                      <td className="px-3 py-3">{row.portions - row.cancelled_portions}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {kitchen.map((row) => (
-                      <tr key={`${row.dish_title}-${row.meal_type}`} className="border-t">
-                        <td className="px-3 py-3">{dictionary.mealType[row.meal_type as MealType]}</td>
-                        <td className="px-3 py-3">{row.dish_title}</td>
-                        <td className="px-3 py-3">{row.portions}</td>
-                        <td className="px-3 py-3">{row.cancelled_portions}</td>
-                        <td className="px-3 py-3">{row.portions - row.cancelled_portions}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className={cn("mt-4", tab === "supply" || exporting ? "block" : "hidden", "print:block")}>
             <h2 className="mb-3 text-base font-semibold">{dictionary.reports.deliveryTitle}</h2>
-            {!hasSupply ? (
+            {delivery.length === 0 ? (
               <p className="text-sm text-muted-foreground">{dictionary.reports.deliveryEmpty}</p>
             ) : (
               <div className="overflow-x-auto">

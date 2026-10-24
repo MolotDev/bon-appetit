@@ -6,6 +6,7 @@ import { dictionary } from "@/constants/dictionary";
 import { completePasswordChange, getOwnProfile } from "@/services/api";
 import { getSupabaseClient } from "@/services/supabase";
 import { useOrderCacheStore } from "@/stores/orderCacheStore";
+import { useOrderStore } from "@/stores/orderStore";
 import type { Profile } from "@/types";
 
 type AuthState = {
@@ -127,6 +128,7 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         await getSupabaseClient().auth.signOut();
         useOrderCacheStore.getState().clear();
+        useOrderStore.getState().clear();
         set({ session: null, profile: null });
       },
 

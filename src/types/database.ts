@@ -10,7 +10,12 @@ export type UserRole = "ADMIN" | "USER";
 
 export type MealType = "BREAKFAST" | "LUNCH_FIRST" | "LUNCH_SECOND" | "DINNER";
 
-export type OrderStatus = "PENDING" | "COOKING" | "IN_DELIVERY" | "COMPLETED" | "CANCELLED";
+export type DbOrderStatus = "PENDING" | "COOKING" | "IN_DELIVERY" | "COMPLETED" | "CANCELLED";
+
+export type OrderStatus =
+  | DbOrderStatus
+  | "PENDING_SYNC"
+  | "SYNC_FAILED_DEADLINE";
 
 export type KitchenReportRow = {
   dish_title: string;
@@ -146,7 +151,7 @@ export type Database = {
           user_id: string;
           target_location_id: string;
           date: string;
-          status: OrderStatus;
+          status: DbOrderStatus;
           cooking_started_at: string | null;
           created_at: string;
         };
@@ -155,7 +160,7 @@ export type Database = {
           user_id: string;
           target_location_id: string;
           date: string;
-          status?: OrderStatus;
+          status?: DbOrderStatus;
           cooking_started_at?: string | null;
           created_at?: string;
         };
@@ -164,7 +169,7 @@ export type Database = {
           user_id?: string;
           target_location_id?: string;
           date?: string;
-          status?: OrderStatus;
+          status?: DbOrderStatus;
           cooking_started_at?: string | null;
           created_at?: string;
         };

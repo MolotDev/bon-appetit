@@ -5,10 +5,11 @@ import { ScreenState } from "@/components/ScreenState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { dictionary } from "@/constants/dictionary";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { cancelOwnOrder, listLocations, listOwnOrders } from "@/services/api";
+import { listLocations, listOwnOrders } from "@/services/api";
+import { persistCancelOrQueue } from "@/services/orderSync";
 import { useAuthStore } from "@/stores/authStore";
 import { useOrderCacheStore } from "@/stores/orderCacheStore";
+import { useOrderStore } from "@/stores/orderStore";
 import {
   MEAL_TYPES,
   dishFromRelation,
@@ -19,7 +20,6 @@ import { formatDateUk, isUserOrderDeadlineOpen } from "@/utils/date";
 
 export function HistoryView() {
   const profile = useAuthStore((state) => state.profile);
-  const online = useOnlineStatus();
   const [status, setStatus] = useState<"loading" | "empty" | "error" | "success">("loading");
   const [errorMessage, setErrorMessage] = useState<string>(dictionary.states.errorGeneric);
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
@@ -46,11 +46,27 @@ export function HistoryView() {
 
     try {
       const [rows, locationRows] = await Promise.all([listOwnOrders(profile.id), listLocations()]);
-      setOrders(rows);
-      setLocations(locationRows);
       cache.cacheLocations(profile.id, locationRows);
-      cache.cacheHistory(profile.id, rows);
-      setStatus(rows.length === 0 ? "empty" : "success");
+      const merged = rows.map((row) => {
+        if (useOrderStore.getState().hasQueuedAction(profile.id, row.date)) {
+          return cache.ordersByDate[row.date] ?? row;
+        }
+        return row;
+      });
+      const extras = Object.values(cache.ordersByDate).filter((local): local is NonNullable<typeof local> => {
+        if (!local) {
+          return false;
+        }
+        return (
+          useOrderStore.getState().hasQueuedAction(profile.id, local.date) &&
+          !merged.some((row) => row.date === local.date)
+        );
+      });
+      const nextOrders = [...extras, ...merged];
+      setOrders(nextOrders);
+      setLocations(locationRows);
+      cache.cacheHistory(profile.id, nextOrders);
+      setStatus(nextOrders.length === 0 ? "empty" : "success");
     } catch (error) {
       if (hasCache) {
         return;
@@ -69,7 +85,11 @@ export function HistoryView() {
   }
 
   function canCancel(order: OrderWithItems): boolean {
-    if (order.status === "CANCELLED" || order.status === "COMPLETED") {
+    if (
+      order.status === "CANCELLED" ||
+      order.status === "COMPLETED" ||
+      order.status === "SYNC_FAILED_DEADLINE"
+    ) {
       return false;
     }
     if (order.status === "COOKING" || order.status === "IN_DELIVERY") {
@@ -79,11 +99,7 @@ export function HistoryView() {
   }
 
   async function onCancel(order: OrderWithItems) {
-    if (!online) {
-      toast.error(dictionary.order.offlineBlocked);
-      return;
-    }
-    if (!canCancel(order)) {
+    if (!profile || !canCancel(order)) {
       toast.error(dictionary.order.deadlineClosed);
       return;
     }
@@ -92,8 +108,14 @@ export function HistoryView() {
     }
     setCancellingId(order.id);
     try {
-      await cancelOwnOrder(order.id);
-      toast.success(dictionary.order.cancelled);
+      await persistCancelOrQueue({
+        payload: {
+          userId: profile.id,
+          date: order.date,
+          orderId: order.id,
+        },
+        optimistic: { ...order, status: "CANCELLED" },
+      });
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : dictionary.states.errorGeneric);
@@ -143,8 +165,7 @@ export function HistoryView() {
                     type="button"
                     variant="outline"
                     className="h-11 w-full"
-                    disabled={cancellingId === order.id || !online}
-                    title={!online ? dictionary.order.offlineBlocked : undefined}
+                    disabled={cancellingId === order.id}
                     onClick={() => void onCancel(order)}
                   >
                     {dictionary.order.cancelOrder}

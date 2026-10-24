@@ -12,6 +12,7 @@ import { ReportsView } from "@/features/admin/ReportsView";
 import { UsersPanelView } from "@/features/admin/UsersPanelView";
 import { HistoryView } from "@/features/orders/HistoryView";
 import { OrderView } from "@/features/orders/OrderView";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useAuthStore } from "@/stores/authStore";
 
 const userLinks = [
@@ -28,6 +29,7 @@ const adminLinks = [
 
 export function App() {
   const initialize = useAuthStore((state) => state.initialize);
+  useOfflineSync();
 
   useEffect(() => {
     void initialize();

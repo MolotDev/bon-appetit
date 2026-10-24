@@ -21,14 +21,10 @@ export function buildMessengerSummary(
     dictionary.reports.kitchenTitle,
   ];
 
-  if (kitchen.length === 0) {
-    lines.push(dictionary.reports.kitchenEmpty);
-  } else {
-    for (const row of kitchen) {
-      lines.push(
-        `${mealLabel(row.meal_type)} — ${row.dish_title}: ${dictionary.reports.orderedPortions} ${row.portions}, ${dictionary.reports.cancelledPortions} ${row.cancelled_portions}, ${dictionary.reports.toIssue} ${row.portions - row.cancelled_portions}`,
-      );
-    }
+  for (const row of kitchen) {
+    lines.push(
+      `${mealLabel(row.meal_type)} — ${row.dish_title}: ${dictionary.reports.orderedPortions} ${row.portions}, ${dictionary.reports.cancelledPortions} ${row.cancelled_portions}, ${dictionary.reports.toIssue} ${row.portions - row.cancelled_portions}`,
+    );
   }
 
   lines.push("", dictionary.reports.deliveryTitle);
