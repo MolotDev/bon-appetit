@@ -280,7 +280,7 @@ export function OrderView() {
                     <article
                       key={group.mealType}
                       className={cn(
-                        "flex min-h-0 flex-1 flex-col gap-1 rounded-lg border px-3 py-2",
+                        "flex min-h-0 flex-1 flex-col rounded-lg border px-3 py-2",
                         ordered ? "border-primary bg-accent" : "bg-card",
                       )}
                     >

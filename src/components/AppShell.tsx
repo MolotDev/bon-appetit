@@ -63,7 +63,7 @@ export function AppShell({
         <aside className="hidden h-full w-56 shrink-0 flex-col border-r bg-card print:hidden md:flex">
           <div className="border-b px-4 py-4">
             <p className="text-sm font-semibold">{dictionary.appName}</p>
-            <p className="text-xs text-muted-foreground">{profile?.full_name}</p>
+            <p className="text-xs text-muted-foreground">{profile?.username}</p>
           </div>
           <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2">{navItems(true)}</nav>
           <div className="border-t p-3">{logoutButton}</div>
@@ -72,7 +72,7 @@ export function AppShell({
           <header className="flex shrink-0 items-center justify-between gap-3 border-b bg-card px-4 py-3 md:hidden print:hidden">
             <div>
               <p className="text-sm font-semibold">{dictionary.appName}</p>
-              <p className="text-xs text-muted-foreground">{profile?.full_name}</p>
+              <p className="text-xs text-muted-foreground">{profile?.username}</p>
             </div>
             {logoutButton}
           </header>
@@ -106,7 +106,7 @@ export function AppShell({
       <header className="flex items-center justify-between gap-3 border-b bg-card px-4 py-3">
         <div>
           <p className="text-sm font-semibold">{dictionary.appName}</p>
-          <p className="text-xs text-muted-foreground">{profile?.full_name}</p>
+          <p className="text-xs text-muted-foreground">{profile?.username}</p>
         </div>
         {logoutButton}
       </header>

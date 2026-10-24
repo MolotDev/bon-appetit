@@ -172,7 +172,7 @@ export async function listProfiles(
   const { data, error } = await client
     .from("profiles")
     .select("*")
-    .order("full_name");
+    .order("username");
   return assertOk(data, error, "listProfiles");
 }
 

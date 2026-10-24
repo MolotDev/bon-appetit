@@ -99,25 +99,25 @@ SELECT public._seed_auth_user(
   'a0000000-0000-4000-8000-000000000001',
   'admin@bon-appetit.local',
   'admin123',
-  'Адміністратор Системи'
+  'admin'
 );
 SELECT public._seed_auth_user(
   'a0000000-0000-4000-8000-000000000002',
   'ivan@bon-appetit.local',
   'ivan123',
-  'Іван Коваленко'
+  'ivan'
 );
 SELECT public._seed_auth_user(
   'a0000000-0000-4000-8000-000000000003',
   'oksana@bon-appetit.local',
   'oksana123',
-  'Оксана Мельник'
+  'oksana'
 );
 SELECT public._seed_auth_user(
   'a0000000-0000-4000-8000-000000000004',
   'petro@bon-appetit.local',
   'petro123',
-  'Петро Шевченко'
+  'petro'
 );
 
 INSERT INTO public.locations (id, name) VALUES
@@ -132,7 +132,7 @@ INSERT INTO public.profiles (
   (
     'a0000000-0000-4000-8000-000000000001',
     'admin',
-    'Адміністратор Системи',
+    'admin',
     'ADMIN',
     '10000000-0000-4000-8000-000000000004',
     false,
@@ -141,7 +141,7 @@ INSERT INTO public.profiles (
   (
     'a0000000-0000-4000-8000-000000000002',
     'ivan',
-    'Іван Коваленко',
+    'ivan',
     'USER',
     '10000000-0000-4000-8000-000000000001',
     false,
@@ -150,7 +150,7 @@ INSERT INTO public.profiles (
   (
     'a0000000-0000-4000-8000-000000000003',
     'oksana',
-    'Оксана Мельник',
+    'oksana',
     'USER',
     '10000000-0000-4000-8000-000000000002',
     false,
@@ -159,7 +159,7 @@ INSERT INTO public.profiles (
   (
     'a0000000-0000-4000-8000-000000000004',
     'petro',
-    'Петро Шевченко',
+    'petro',
     'USER',
     '10000000-0000-4000-8000-000000000003',
     false,

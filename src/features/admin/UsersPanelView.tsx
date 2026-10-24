@@ -42,7 +42,6 @@ type ModalMode = "closed" | "create" | "edit" | "password";
 
 const emptyForm = {
   username: "",
-  fullName: "",
   role: "USER" as UserRole,
   locationId: "",
 };
@@ -87,7 +86,6 @@ export function UsersPanelView() {
       const matchesRole = roleFilter === "ALL" || user.role === roleFilter;
       const matchesQuery =
         needle.length === 0 ||
-        user.full_name.toLowerCase().includes(needle) ||
         user.username.toLowerCase().includes(needle);
       return matchesRole && matchesQuery;
     });
@@ -119,7 +117,6 @@ export function UsersPanelView() {
     setEditingUser(user);
     setForm({
       username: user.username,
-      fullName: user.full_name,
       role: user.role,
       locationId: user.default_location_id ?? "",
     });
@@ -149,20 +146,14 @@ export function UsersPanelView() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextUsername = form.username.trim().toLowerCase();
-    const nextFullName = form.fullName.trim();
     if (modal === "create" && !/^[a-z0-9._-]{3,32}$/.test(nextUsername)) {
       toast.error(dictionary.users.usernameInvalid);
-      return;
-    }
-    if (nextFullName.length < 2) {
-      toast.error(dictionary.users.fullNameInvalid);
       return;
     }
     setSaving(true);
     try {
       if (modal === "edit" && editingUser) {
         const updated = await updateProfile(editingUser.id, {
-          full_name: nextFullName,
           role: form.role,
           default_location_id: form.locationId.length > 0 ? form.locationId : null,
         });
@@ -176,7 +167,7 @@ export function UsersPanelView() {
       const result = await invokeAdminUsers({
         action: "create",
         username: nextUsername,
-        full_name: nextFullName,
+        full_name: nextUsername,
         role: form.role,
         default_location_id: form.locationId.length > 0 ? form.locationId : null,
         password,
@@ -332,7 +323,6 @@ export function UsersPanelView() {
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="bg-muted/60">
                 <tr>
-                  <th className="px-3 py-3 font-medium">{dictionary.users.fullName}</th>
                   <th className="px-3 py-3 font-medium">{dictionary.users.username}</th>
                   <th className="px-3 py-3 font-medium">{dictionary.users.role}</th>
                   <th className="px-3 py-3 font-medium">{dictionary.users.location}</th>
@@ -347,14 +337,13 @@ export function UsersPanelView() {
                   return (
                     <tr key={user.id} className="border-t">
                       <td className="px-3 py-3">
-                        <p className="font-medium">{user.full_name}</p>
+                        <p className="font-medium">{user.username}</p>
                         {user.must_change_password ? (
                           <p className="text-xs text-muted-foreground">
                             {dictionary.users.mustChangePassword}
                           </p>
                         ) : null}
                       </td>
-                      <td className="px-3 py-3">{user.username}</td>
                       <td className="px-3 py-3">{dictionary.role[user.role]}</td>
                       <td className="px-3 py-3">{locationName(user.default_location_id)}</td>
                       <td className="px-3 py-3">
@@ -449,17 +438,6 @@ export function UsersPanelView() {
                 value={form.username}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, username: event.target.value.toLowerCase() }))
-                }
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="user-full-name">{dictionary.users.fullName}</Label>
-              <Input
-                id="user-full-name"
-                autoComplete="off"
-                value={form.fullName}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, fullName: event.target.value }))
                 }
               />
             </div>

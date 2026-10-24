@@ -121,7 +121,7 @@ export const dictionary = {
     emptyFiltered: "Нікого не знайдено за цим запитом",
     blocked: "Заблоковано",
     active: "Активний",
-    filter: "Пошук за ПІБ або логіном",
+    filter: "Пошук за логіном",
     allRoles: "Усі ролі",
     createTitle: "Новий працівник",
     editTitle: "Редагувати працівника",
