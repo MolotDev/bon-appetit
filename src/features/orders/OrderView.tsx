@@ -308,7 +308,7 @@ export function OrderView() {
                         <MealChoiceRadio
                           checked={canOrder && ordered}
                           disabled={!canOrder}
-                          label={dictionary.order.orderDish}
+                          label="" //{dictionary.order.orderDish}
                           onChange={setOrdered}
                         />
                       </div>
