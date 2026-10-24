@@ -5,7 +5,7 @@ import { ScreenState } from "@/components/ScreenState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { dictionary } from "@/constants/dictionary";
-import { checkUserOrderDeadline, listLocations, listOwnOrders, updateOrder } from "@/services/api";
+import { cancelOwnOrder, listLocations, listOwnOrders } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 import {
   MEAL_TYPES,
@@ -48,11 +48,13 @@ export function HistoryView() {
   }
 
   function canCancel(order: OrderWithItems): boolean {
-    return (
-      isUserOrderDeadlineOpen(order.date) &&
-      order.status !== "CANCELLED" &&
-      order.status !== "COMPLETED"
-    );
+    if (order.status === "CANCELLED" || order.status === "COMPLETED") {
+      return false;
+    }
+    if (order.status === "COOKING" || order.status === "IN_DELIVERY") {
+      return true;
+    }
+    return isUserOrderDeadlineOpen(order.date);
   }
 
   async function onCancel(order: OrderWithItems) {
@@ -65,13 +67,7 @@ export function HistoryView() {
     }
     setCancellingId(order.id);
     try {
-      const allowed = await checkUserOrderDeadline(order.date);
-      if (!allowed) {
-        toast.error(dictionary.order.deadlineClosed);
-        await load();
-        return;
-      }
-      await updateOrder(order.id, { status: "CANCELLED" });
+      await cancelOwnOrder(order.id);
       toast.success(dictionary.order.cancelled);
       await load();
     } catch (error) {

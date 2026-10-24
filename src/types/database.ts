@@ -10,12 +10,13 @@ export type UserRole = "ADMIN" | "USER";
 
 export type MealType = "BREAKFAST" | "LUNCH_FIRST" | "LUNCH_SECOND" | "DINNER";
 
-export type OrderStatus = "PENDING" | "IN_DELIVERY" | "COMPLETED" | "CANCELLED";
+export type OrderStatus = "PENDING" | "COOKING" | "IN_DELIVERY" | "COMPLETED" | "CANCELLED";
 
 export type KitchenReportRow = {
   dish_title: string;
   meal_type: MealType;
   portions: number;
+  cancelled_portions: number;
 };
 
 export type DeliveryReportRow = {
@@ -146,6 +147,7 @@ export type Database = {
           target_location_id: string;
           date: string;
           status: OrderStatus;
+          cooking_started_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -154,6 +156,7 @@ export type Database = {
           target_location_id: string;
           date: string;
           status?: OrderStatus;
+          cooking_started_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -162,6 +165,7 @@ export type Database = {
           target_location_id?: string;
           date?: string;
           status?: OrderStatus;
+          cooking_started_at?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -277,6 +281,18 @@ export type Database = {
       get_delivery_report: {
         Args: { target_date: string };
         Returns: DeliveryReportRow[];
+      };
+      start_kitchen_cooking: {
+        Args: { target_date: string };
+        Returns: number;
+      };
+      confirm_order_received: {
+        Args: { target_order_id: string };
+        Returns: Database["public"]["Tables"]["orders"]["Row"];
+      };
+      cancel_own_order: {
+        Args: { target_order_id: string };
+        Returns: Database["public"]["Tables"]["orders"]["Row"];
       };
       complete_password_change: {
         Args: Record<PropertyKey, never>;

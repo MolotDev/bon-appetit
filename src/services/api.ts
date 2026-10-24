@@ -2,6 +2,7 @@ import { getSupabaseClient, type BonAppetitClient } from "@/services/supabase";
 import type {
   DeliveryReportRow,
   KitchenReportRow,
+  Tables,
   TablesInsert,
   TablesUpdate,
 } from "@/types/database";
@@ -88,6 +89,47 @@ export async function getDeliveryReport(
     target_date: targetDate,
   });
   return assertOk(data, error, "get_delivery_report");
+}
+
+export async function startKitchenCooking(
+  targetDate: string,
+  client: BonAppetitClient = getSupabaseClient(),
+): Promise<number> {
+  const { data, error } = await client.rpc("start_kitchen_cooking", {
+    target_date: targetDate,
+  });
+  return assertOk(data, error, "start_kitchen_cooking");
+}
+
+export async function listOrderStatusesForDate(
+  targetDate: string,
+  client: BonAppetitClient = getSupabaseClient(),
+): Promise<Pick<Tables<"orders">, "id" | "status" | "cooking_started_at">[]> {
+  const { data, error } = await client
+    .from("orders")
+    .select("id, status, cooking_started_at")
+    .eq("date", targetDate);
+  return assertOk(data, error, "listOrderStatusesForDate");
+}
+
+export async function confirmOrderReceived(
+  orderId: string,
+  client: BonAppetitClient = getSupabaseClient(),
+) {
+  const { data, error } = await client.rpc("confirm_order_received", {
+    target_order_id: orderId,
+  });
+  return assertOk(data, error, "confirm_order_received");
+}
+
+export async function cancelOwnOrder(
+  orderId: string,
+  client: BonAppetitClient = getSupabaseClient(),
+) {
+  const { data, error } = await client.rpc("cancel_own_order", {
+    target_order_id: orderId,
+  });
+  return assertOk(data, error, "cancel_own_order");
 }
 
 export async function listLocations(

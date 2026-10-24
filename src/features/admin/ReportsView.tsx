@@ -7,7 +7,12 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { ViewportSelect } from "@/components/ui/viewport-select";
 import { dictionary } from "@/constants/dictionary";
 import { OpsCheckPanel } from "@/features/admin/OpsCheckPanel";
-import { getDeliveryReport, getKitchenReport } from "@/services/api";
+import {
+  getDeliveryReport,
+  getKitchenReport,
+  listOrderStatusesForDate,
+  startKitchenCooking,
+} from "@/services/api";
 import type { DeliveryReportRow, KitchenReportRow, MealType } from "@/types";
 import { cn } from "@/utils/cn";
 import { defaultOrderTargetDate, formatDateUk } from "@/utils/date";
@@ -22,18 +27,28 @@ export function ReportsView() {
   const [errorMessage, setErrorMessage] = useState<string>(dictionary.states.errorGeneric);
   const [kitchen, setKitchen] = useState<KitchenReportRow[]>([]);
   const [delivery, setDelivery] = useState<DeliveryReportRow[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [cookingStarted, setCookingStarted] = useState(false);
+  const [startingCooking, setStartingCooking] = useState(false);
   const [exporting, setExporting] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
   async function loadReports(targetDate: string) {
     setStatus("loading");
     try {
-      const [kitchenRows, deliveryRows] = await Promise.all([
+      const [kitchenRows, deliveryRows, orderStatuses] = await Promise.all([
         getKitchenReport(targetDate),
         getDeliveryReport(targetDate),
+        listOrderStatusesForDate(targetDate),
       ]);
       setKitchen(kitchenRows);
       setDelivery(deliveryRows);
+      setPendingCount(orderStatuses.filter((row) => row.status === "PENDING").length);
+      setCookingStarted(
+        orderStatuses.some(
+          (row) => row.status === "COOKING" || Boolean(row.cooking_started_at),
+        ),
+      );
       setStatus("success");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : dictionary.states.errorGeneric);
@@ -56,9 +71,35 @@ export function ReportsView() {
       0,
   );
 
+  async function onStartCooking() {
+    if (pendingCount === 0) {
+      toast.error(dictionary.reports.nothingToCook);
+      return;
+    }
+    if (!window.confirm(dictionary.reports.confirmStartCooking)) {
+      return;
+    }
+    setStartingCooking(true);
+    try {
+      const updated = await startKitchenCooking(date);
+      if (updated === 0) {
+        toast.error(dictionary.reports.nothingToCook);
+      } else {
+        toast.success(dictionary.reports.cookingStartedToast);
+      }
+      await loadReports(date);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : dictionary.states.errorGeneric);
+    } finally {
+      setStartingCooking(false);
+    }
+  }
+
   async function onCopy() {
     try {
-      await navigator.clipboard.writeText(buildMessengerSummary(date, kitchen, delivery));
+      await navigator.clipboard.writeText(
+        buildMessengerSummary(date, kitchen, delivery),
+      );
       toast.success(dictionary.reports.copied);
     } catch {
       toast.error(dictionary.states.errorGeneric);
@@ -117,6 +158,18 @@ export function ReportsView() {
           >
             {dictionary.reports.exportPdf}
           </Button>
+          {tab === "kitchen" ? (
+            <Button
+              type="button"
+              className="h-10 shrink-0"
+              disabled={startingCooking || pendingCount === 0}
+              onClick={() => void onStartCooking()}
+            >
+              {cookingStarted && pendingCount === 0
+                ? dictionary.reports.cookingStarted
+                : dictionary.reports.startCooking}
+            </Button>
+          ) : null}
           <Button type="button" className="ml-auto h-10 shrink-0" onClick={() => void onCopy()}>
             {dictionary.reports.copySummary}
           </Button>
@@ -156,7 +209,9 @@ export function ReportsView() {
                     <tr>
                       <th className="px-3 py-3 font-medium">{dictionary.reports.category}</th>
                       <th className="px-3 py-3 font-medium">{dictionary.reports.dish}</th>
-                      <th className="px-3 py-3 font-medium">{dictionary.reports.portions}</th>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.orderedPortions}</th>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.cancelledPortions}</th>
+                      <th className="px-3 py-3 font-medium">{dictionary.reports.toIssue}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -165,6 +220,8 @@ export function ReportsView() {
                         <td className="px-3 py-3">{dictionary.mealType[row.meal_type as MealType]}</td>
                         <td className="px-3 py-3">{row.dish_title}</td>
                         <td className="px-3 py-3">{row.portions}</td>
+                        <td className="px-3 py-3">{row.cancelled_portions}</td>
+                        <td className="px-3 py-3">{row.portions - row.cancelled_portions}</td>
                       </tr>
                     ))}
                   </tbody>

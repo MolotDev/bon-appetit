@@ -25,7 +25,9 @@ export function buildMessengerSummary(
     lines.push(dictionary.reports.kitchenEmpty);
   } else {
     for (const row of kitchen) {
-      lines.push(`${mealLabel(row.meal_type)} — ${row.dish_title}: ${row.portions}`);
+      lines.push(
+        `${mealLabel(row.meal_type)} — ${row.dish_title}: ${dictionary.reports.orderedPortions} ${row.portions}, ${dictionary.reports.cancelledPortions} ${row.cancelled_portions}, ${dictionary.reports.toIssue} ${row.portions - row.cancelled_portions}`,
+      );
     }
   }
 

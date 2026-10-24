@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { ViewportSelect } from "@/components/ui/viewport-select";
 import { dictionary } from "@/constants/dictionary";
 import {
+  cancelOwnOrder,
   checkUserOrderDeadline,
+  confirmOrderReceived,
   createOrder,
   getDailyMenu,
   getOwnOrderForDate,
@@ -139,7 +141,18 @@ export function OrderView() {
 
   const emptyMessage =
     locations.length === 0 ? dictionary.order.emptyLocations : dictionary.order.emptyMenu;
-  const canEdit = deadlineOpen && status === "success" && locations.length > 0;
+  const cookingStarted = Boolean(
+    order &&
+      (order.cooking_started_at || order.status === "COOKING" || order.status === "IN_DELIVERY"),
+  );
+  const canConfirmReceipt =
+    order?.status === "COOKING" || order?.status === "IN_DELIVERY";
+  const canEdit =
+    deadlineOpen &&
+    status === "success" &&
+    locations.length > 0 &&
+    !cookingStarted &&
+    order?.status !== "COMPLETED";
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -197,6 +210,43 @@ export function OrderView() {
     }
   }
 
+  async function onCancelOrder() {
+    if (!profile || !order || !canConfirmReceipt) {
+      return;
+    }
+    if (!window.confirm(dictionary.history.confirmCancel)) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await cancelOwnOrder(order.id);
+      const refreshed = await getOwnOrderForDate(profile.id, targetDate);
+      setOrder(refreshed);
+      toast.success(dictionary.order.cancelled);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : dictionary.states.errorGeneric);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function onConfirmReceived() {
+    if (!profile || !order || !canConfirmReceipt) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await confirmOrderReceived(order.id);
+      const refreshed = await getOwnOrderForDate(profile.id, targetDate);
+      setOrder(refreshed);
+      toast.success(dictionary.order.received);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : dictionary.states.errorGeneric);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex shrink-0 items-center justify-between gap-3">
@@ -204,7 +254,11 @@ export function OrderView() {
         {order ? <StatusBadge status={order.status} /> : null}
       </div>
 
-      {!deadlineOpen ? <DeadlineBanner message={dictionary.order.deadlineClosed} /> : null}
+      {cookingStarted && order?.status !== "COMPLETED" ? (
+        <DeadlineBanner message={dictionary.order.cookingLocked} />
+      ) : !deadlineOpen ? (
+        <DeadlineBanner message={dictionary.order.deadlineClosed} />
+      ) : null}
 
       <ScreenState
         status={status === "success" && locations.length === 0 ? "empty" : status}
@@ -213,40 +267,40 @@ export function OrderView() {
         onRetry={() => void load(targetDate)}
       >
         <form className="flex min-h-0 flex-1 flex-col gap-2" onSubmit={onSubmit}>
+          <div className="grid shrink-0 grid-cols-2 gap-2">
+            <div className="min-w-0">
+              <Label htmlFor="order-date" className="text-xs">
+                {dictionary.common.date}
+              </Label>
+              <DatePicker
+                id="order-date"
+                className="h-9"
+                min={todayKyivIsoDate()}
+                value={targetDate}
+                onChange={(next) => setTargetDate(next || defaultOrderTargetDate())}
+              />
+            </div>
+            <div className="min-w-0">
+              <Label htmlFor="location" className="text-xs">
+                {dictionary.order.location}
+              </Label>
+              <ViewportSelect
+                id="location"
+                value={locationId}
+                placeholder={dictionary.order.selectLocation}
+                disabled={!canEdit || submitting}
+                onChange={setLocationId}
+                options={locations.map((location) => ({
+                  value: location.id,
+                  label: location.name,
+                }))}
+              />
+            </div>
+          </div>
           <fieldset
             disabled={!canEdit || submitting}
             className="flex min-h-0 flex-1 flex-col gap-2 disabled:opacity-100"
           >
-            <div className="grid shrink-0 grid-cols-2 gap-2">
-              <div className="min-w-0">
-                <Label htmlFor="order-date" className="text-xs">
-                  {dictionary.common.date}
-                </Label>
-                <DatePicker
-                  id="order-date"
-                  className="h-9"
-                  min={todayKyivIsoDate()}
-                  value={targetDate}
-                  onChange={(next) => setTargetDate(next || defaultOrderTargetDate())}
-                />
-              </div>
-              <div className="min-w-0">
-                <Label htmlFor="location" className="text-xs">
-                  {dictionary.order.location}
-                </Label>
-                <ViewportSelect
-                  id="location"
-                  value={locationId}
-                  placeholder={dictionary.order.selectLocation}
-                  disabled={!canEdit || submitting}
-                  onChange={setLocationId}
-                  options={locations.map((location) => ({
-                    value: location.id,
-                    label: location.name,
-                  }))}
-                />
-              </div>
-            </div>
 
             {menu.length === 0 ? (
               <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
@@ -317,9 +371,31 @@ export function OrderView() {
               </div>
             )}
           </fieldset>
-          <Button type="submit" className="h-10 shrink-0" disabled={!canEdit || submitting || menu.length === 0}>
-            {dictionary.order.save}
-          </Button>
+          {canConfirmReceipt ? (
+            <div className="flex shrink-0 gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 flex-1"
+                disabled={submitting}
+                onClick={() => void onCancelOrder()}
+              >
+                {dictionary.order.cancelOrder}
+              </Button>
+              <Button
+                type="button"
+                className="h-11 flex-1"
+                disabled={submitting}
+                onClick={() => void onConfirmReceived()}
+              >
+                {dictionary.order.confirmReceived}
+              </Button>
+            </div>
+          ) : cookingStarted || order?.status === "COMPLETED" ? null : (
+            <Button type="submit" className="h-11 shrink-0" disabled={!canEdit || submitting || menu.length === 0}>
+              {dictionary.order.save}
+            </Button>
+          )}
         </form>
       </ScreenState>
     </section>
