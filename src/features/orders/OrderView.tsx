@@ -41,7 +41,7 @@ function MealChoiceRadio({
   onChange: (next: boolean) => void;
 }) {
   return (
-    <label className="flex min-h-10 items-center gap-2 text-sm">
+    <label className="flex h-fit items-center gap-2 text-sm">
       <span className="relative inline-flex h-5 w-5 shrink-0 items-center justify-center">
         <input
           type="checkbox"
@@ -283,17 +283,17 @@ export function OrderView() {
                     <article
                       key={group.mealType}
                       className={cn(
-                        "flex min-h-0 flex-1 flex-col rounded-lg border px-3 py-2",
+                        "flex min-h-0 flex-1 flex-col gap-2 rounded-lg border px-3 py-2",
                         ordered ? "border-primary bg-accent" : "bg-card",
                       )}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between gap-2">
                         <h2 className="min-w-0 flex-1 text-sm font-semibold">
                           {dictionary.mealType[group.mealType]}
                         </h2>
                       </div>
 
-                      <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
+                      <div className="flex min-h-0 flex-1 flex-col justify-center pl-20">
                         {dish ? (
                           <>
                             <p className="text-sm font-medium leading-tight">{dish.title}</p>
