@@ -93,7 +93,7 @@ WHERE email IN (
 DELETE FROM public.daily_menu;
 DELETE FROM public.dishes;
 DELETE FROM public.locations
-WHERE name IN ('Офіс Центр', 'Офіс Лівобережна', 'Склад', 'Штаб');
+WHERE name IN ('Офіс Центр', 'Офіс Лівобережна', 'Склад', 'Штаб', 'Офіс Лондон');
 
 SELECT public._seed_auth_user(
   'a0000000-0000-4000-8000-000000000001',
@@ -124,7 +124,7 @@ INSERT INTO public.locations (id, name) VALUES
   ('10000000-0000-4000-8000-000000000001', 'Офіс Центр'),
   ('10000000-0000-4000-8000-000000000002', 'Офіс Лівобережна'),
   ('10000000-0000-4000-8000-000000000003', 'Склад'),
-  ('10000000-0000-4000-8000-000000000004', 'Штаб');
+  ('10000000-0000-4000-8000-000000000004', 'Офіс Лондон');
 
 INSERT INTO public.profiles (
   id, username, full_name, role, default_location_id, is_blocked, must_change_password

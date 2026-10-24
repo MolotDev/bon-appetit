@@ -241,13 +241,10 @@ export function OrderView() {
                   placeholder={dictionary.order.selectLocation}
                   disabled={!canEdit || submitting}
                   onChange={setLocationId}
-                  options={[
-                    { value: "", label: dictionary.order.selectLocation },
-                    ...locations.map((location) => ({
-                      value: location.id,
-                      label: location.name,
-                    })),
-                  ]}
+                  options={locations.map((location) => ({
+                    value: location.id,
+                    label: location.name,
+                  }))}
                 />
               </div>
             </div>

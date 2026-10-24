@@ -114,7 +114,9 @@ export function ViewportSelect({
         )}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="min-w-0 truncate">{selected?.label ?? placeholder}</span>
+        <span className={cn("min-w-0 truncate", !selected && "text-muted-foreground")}>
+          {selected?.label ?? placeholder}
+        </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
       {open && box
